@@ -9,6 +9,49 @@ This is very much code-in-progress.  When I use it, I typically just put it as a
 $ git submodule add https://github.com/awf/awfutils
 ```
 
+# Typecheck
+
+I love run time type checkers, [particularly with JAX](https://github.com/google/jaxtyping/blob/main/FAQ.md#what-about-support-for-static-type-checkers-like-mypy-pyright-etc) but by default they (OK, beartype doesn't) don't check statement-level annotations like these:
+```python
+def foo(x : int, y : float):
+  z : int = x * y # This should error, but doesn't
+  w : float = z * 3.2
+  return w
+
+foo(3, 1.3)
+```
+
+With the awfutils `typecheck` decorator, they can...
+```python
+@typecheck
+def foo(x : int, y : float):
+  z : int = x * y # Now it raises AssertionError: z not int 
+  w : float = z * 3.2
+  return w
+
+foo(3, 1.3) # Error comes from this call
+```
+
+This works by AST transformation, replacing the function foo above
+with the function
+```python
+def foo_checked(x: int, y: float):
+  z: int = x * y
+  assert isinstance(z, int), 'z not a int'
+  w: float = z * 3.2
+  assert isinstance(w, float), 'w not a float'
+  return w
+```
+Because it's AST transformation it is basically literally the above code, you 
+If you want to actually see the transformed code, call with show_src=True
+```python
+@functools.partial(typecheck, show_src=True)
+def foo(x : int, y : float):
+  z : int = x * y # Now it does
+  w : float = z * 3.2
+  return w
+```
+
 # Arg
 
 A distributed argument parser, like absl flags, but a little more convenient and less stringy.
