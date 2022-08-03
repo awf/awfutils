@@ -95,7 +95,9 @@ class TypeCheckVisitor(ast.NodeTransformer):
                 ],
                 [],
             ),
-            msg=ast.Constant(value=f"{node.target.id} not a {annot_str}", kind=None),
+            msg=ast.Constant(
+                value=f"{node.target.id} not of type {annot_str}", kind=None
+            ),
         )
         node_assert = ast.copy_location(node_assert, node)
         ast.fix_missing_locations(node_assert)
@@ -108,7 +110,7 @@ def typecheck(f, show_src=False):
       x : T = e
     into
       x : T = e
-      assert isinstance(x, T), "x is not a T"
+      assert isinstance(x, T), "x is not of type T"
 
     EXAMPLE:
 
@@ -146,7 +148,7 @@ def typecheck(f, show_src=False):
     """
 
     # TODO:
-    #   if not isinstance(x, T): raise TypeError("x is not a T")
+    #   if not isinstance(x, T): raise TypeError("x is not of type T")
 
     node = get_ast_for_function(f)
     new_node = TypeCheckVisitor().visit(node)

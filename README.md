@@ -37,9 +37,9 @@ with the function
 ```python
 def foo_checked(x: int, y: float):
   z: int = x * y
-  assert isinstance(z, int), 'z not a int'
+  assert isinstance(z, int), 'z not of type int'
   w: float = z * 3.2
-  assert isinstance(w, float), 'w not a float'
+  assert isinstance(w, float), 'w not of type float'
   return w
 ```
 Because it's AST transformation it is basically literally the above code, you 

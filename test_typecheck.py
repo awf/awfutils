@@ -7,9 +7,9 @@ def test_typecheck_1():
     @typecheck
     def foo(x: int, t: float) -> float:
         y: float = x * t
-        assert isinstance(y, float), f"y a {type(y)} not a float"
+        assert isinstance(y, float), f"y : {type(y)} not of type float"
         z: int = x // 2
-        assert isinstance(z, int), "z not a int"
+        assert isinstance(z, int), "z not of type int"
         return z * y
 
     # Use manual checks
@@ -59,7 +59,7 @@ def test_typecheck_jaxtyping():
         import jax
         import jaxtyping
     except:
-        pytest.skip("No jaxtyping")
+        pytest.skip("No jax or jaxtyping")
 
     import jax
     from jaxtyping import f32, u, jaxtyped
