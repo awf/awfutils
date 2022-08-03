@@ -1,6 +1,9 @@
 import pytest
 
 from typecheck import typecheck
+from functools import partial
+
+typecheck_with_src = partial(typecheck, show_src=True)
 
 
 def test_typecheck_1():
@@ -18,6 +21,10 @@ def test_typecheck_1():
     # Ensure passes
     foo(3, 4.2)
     assert True, "foo did not raise, as expected"
+
+    # Check that argument mismatches also raise
+    with pytest.raises(AssertionError):
+        foo(3, 5)
 
     @typecheck
     def foo1(x: int, t: int) -> float:
@@ -42,7 +49,7 @@ def test_typecheck_jax():
     import jax.numpy as jnp
 
     @jax.jit
-    @typecheck
+    @typecheck_with_src
     def foo1(x: int, t: jnp.ndarray) -> float:
         y: int = x * t  # Expect to raise here
         z: jnp.ndarray = y / 2

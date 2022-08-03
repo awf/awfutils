@@ -69,6 +69,53 @@ def get_ast_for_function(f):
 
 
 class TypeCheckVisitor(ast.NodeTransformer):
+    def make_assert_node(self, name: str, annotation: ast.expr):
+        annot_str = ast.unparse(annotation)
+        node_assert = ast.Assert(
+            test=ast.Call(
+                ast.Name("isinstance", ctx=ast.Load()),
+                [
+                    ast.Name(name, ctx=ast.Load()),
+                    annotation,
+                ],
+                [],
+            ),
+            msg=ast.Constant(value=f"{name} not of type {annot_str}", kind=None),
+        )
+        # Assertion is associated with source location of the annotation - normally
+        # on the same line, but if not, still arguably correct
+        node_assert = ast.copy_location(node_assert, annotation)
+        ast.fix_missing_locations(node_assert)
+        return node_assert
+
+    def visit_FunctionDef(self, node):
+        """
+        Add asserts for args
+        """
+        # node.name : raw string of the function name.
+        # node.args : arguments node.
+        # node.body : list of nodes inside the function.
+        # node.decorator_list : list of decorators to be applied, stored outermost first (i.e. the first in the list will be applied last).
+        # node.returns : the return annotation (Python 3 only).
+        # node.type_comment : optional string containing the PEP 484 type comment of the function (added in Python 3.8)
+        node = self.generic_visit(node)
+        from icecream import ic
+
+        assert_nodes = [
+            self.make_assert_node(a.arg, a.annotation) for a in node.args.args
+        ]
+
+        new_node = ast.FunctionDef(
+            node.name + "_typecheck_wrap",
+            node.args,
+            assert_nodes + node.body,
+            node.decorator_list,
+            node.returns,
+            node.type_comment,
+        )
+        new_node = ast.copy_location(new_node, node)
+        return new_node
+
     def visit_AnnAssign(self, node):
         # An assignment with a type annotation.
         # node.target : single node and can be a Name, a Attribute or a Subscript.
@@ -82,25 +129,7 @@ class TypeCheckVisitor(ast.NodeTransformer):
 
         assert isinstance(node.target, ast.Name)  # Should be guaranteed by node.simple
 
-        annot_str = ast.unparse(node.annotation)
-
-        node_assert = ast.Assert(
-            test=ast.Call(
-                ast.Name("isinstance", ctx=ast.Load()),
-                [
-                    ast.Name(
-                        node.target.id, ctx=ast.Load()
-                    ),  # Convert ctx from Store to Load
-                    node.annotation,
-                ],
-                [],
-            ),
-            msg=ast.Constant(
-                value=f"{node.target.id} not of type {annot_str}", kind=None
-            ),
-        )
-        node_assert = ast.copy_location(node_assert, node)
-        ast.fix_missing_locations(node_assert)
+        node_assert = self.make_assert_node(node.target.id, node.annotation)
         return [node, node_assert]
 
 
@@ -110,7 +139,7 @@ def typecheck(f, show_src=False):
       x : T = e
     into
       x : T = e
-      assert isinstance(x, T), "x is not of type T"
+      assert isinstance(x, T), "x not of type T"
 
     EXAMPLE:
 
@@ -130,14 +159,16 @@ def typecheck(f, show_src=False):
     This works by AST transformation, replacing the function foo above
     with the function
 
-      def foo(x : int, y : float):
-        z : int = x * y
-        assert isinstance(z, int)
-        w : float = z * 3.2
-        assert isinstance(w, float)
+      def foo_typecheck_wrap(x: int, y: float):
+        assert isinstance(x, int), 'x not of type int'
+        assert isinstance(y, float), 'y not of type float'
+        z: int = x * y
+        assert isinstance(z, int), 'z not of type int'
+        w: float = z * 3.2
+        assert isinstance(w, float), 'w not of type float'
         return w
 
-    If you want to actually see the transformed code, call with show_src=True
+    If you want to see that transformed code, call with show_src=True
 
       @functools.partial(typecheck, show_src=True)
       def foo(x : int, y : float):
@@ -148,7 +179,7 @@ def typecheck(f, show_src=False):
     """
 
     # TODO:
-    #   if not isinstance(x, T): raise TypeError("x is not of type T")
+    #   if not isinstance(x, T): raise TypeError("x not of type T")
 
     node = get_ast_for_function(f)
     new_node = TypeCheckVisitor().visit(node)

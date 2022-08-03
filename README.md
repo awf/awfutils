@@ -35,15 +35,17 @@ foo(3, 1.3) # Error comes from this call
 This works by AST transformation, replacing the function foo above
 with the function
 ```python
-def foo_checked(x: int, y: float):
-  z: int = x * y
-  assert isinstance(z, int), 'z not of type int'
-  w: float = z * 3.2
-  assert isinstance(w, float), 'w not of type float'
-  return w
+def foo_typecheck_wrap(x: int, y: float):
+    assert isinstance(x, int), 'x not of type int'
+    assert isinstance(y, float), 'y not of type float'
+    z: int = x * y
+    assert isinstance(z, int), 'z not of type int'
+    w: float = z * 3.2
+    assert isinstance(w, float), 'w not of type float'
+    return w
 ```
-Because it's AST transformation it is basically literally the above code, you 
-If you want to actually see the transformed code, call with show_src=True
+Because it's AST transformation it is basically literally the above code, 
+which you can see with the optional argument show_src=True
 ```python
 @functools.partial(typecheck, show_src=True)
 def foo(x : int, y : float):
