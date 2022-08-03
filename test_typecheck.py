@@ -31,6 +31,7 @@ def test_typecheck_1():
     with pytest.raises(AssertionError):
         foo1(3, 5)
 
+
 def test_typecheck_jax():
     import jax
     import jax.numpy as jnp
