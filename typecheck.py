@@ -69,34 +69,6 @@ def get_ast_for_function(f):
 
 
 class TypeCheckVisitor(ast.NodeTransformer):
-    def visit_FunctionDef(self, node):
-        """
-        Remove 'typecheck' decorator
-        Change name to '<name>_checked'
-        """
-        # node.name : raw string of the function name.
-        # node.args : arguments node.
-        # node.body : list of nodes inside the function.
-        # node.decorator_list : list of decorators to be applied, stored outermost first (i.e. the first in the list will be applied last).
-        # node.returns : the return annotation (Python 3 only).
-        # node.type_comment : optional string containing the PEP 484 type comment of the function (added in Python 3.8)
-        node = self.generic_visit(node)
-        new_decorator_list = [
-            dec
-            for dec in node.decorator_list
-#            if not (isinstance(dec, ast.Name) and dec.id == "typecheck")
-        ]
-        new_node = ast.FunctionDef(
-            node.name + "_checked",
-            node.args,
-            node.body,
-            new_decorator_list,
-            node.returns,
-            node.type_comment,
-        )
-        new_node = ast.copy_location(new_node, node)
-        return new_node
-
     def visit_AnnAssign(self, node):
         # An assignment with a type annotation.
         # node.target : single node and can be a Name, a Attribute or a Subscript.
@@ -196,9 +168,10 @@ def typecheck(f, show_src=False):
         raise ValueError("See AST printed above") from e
 
     fns = tuple(k for k in new_code.co_consts if isinstance(k, types.CodeType))
-    assert len(fns) == 1
+    assert len(fns) == 1, "TODO: Will need a better way to find the code"
 
-    f_code = fns[0]  # TODO search better
-    f_checked = types.FunctionType(f_code, globals=f.__globals__)
+    f_code = fns[0]
+    f_name = f.__name__ + "_typecheck_wrap"
+    f_checked = types.FunctionType(f_code, globals=f.__globals__, name=f_name)
     f_checked.__wrapped__ = f
     return f_checked
