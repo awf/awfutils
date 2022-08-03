@@ -65,28 +65,39 @@ def get_ast_for_function(f):
     source = "".join(sourcelines)
     dedent_src = dedent(source)
 
-    return ast.parse(dedent_src, filename=filename)
+    return ast.parse(dedent_src, filename=filename), filename
 
 
 class TypeCheckVisitor(ast.NodeTransformer):
     def make_assert_node(self, name: str, annotation: ast.expr):
         annot_str = ast.unparse(annotation)
-        node_assert = ast.Assert(
-            test=ast.Call(
-                ast.Name("isinstance", ctx=ast.Load()),
+
+        # typecheck.assert_is_instance
+        assert_is_instance = ast.Attribute(
+            value=ast.Name("typecheck", ctx=ast.Load()),
+            attr="assert_is_instance",
+            ctx=ast.Load(),
+        )
+
+        node = ast.Expr(
+            ast.Call(
+                assert_is_instance,
                 [
                     ast.Name(name, ctx=ast.Load()),
                     annotation,
+                    ast.Constant(value=name, kind=None),
+                    ast.Constant(value=annot_str, kind=None),
                 ],
                 [],
-            ),
-            msg=ast.Constant(value=f"{name} not of type {annot_str}", kind=None),
+            )
         )
+
         # Assertion is associated with source location of the annotation - normally
         # on the same line, but if not, still arguably correct
-        node_assert = ast.copy_location(node_assert, annotation)
-        ast.fix_missing_locations(node_assert)
-        return node_assert
+        node = ast.copy_location(node, annotation)
+        ast.fix_missing_locations(node)
+
+        return node
 
     def visit_FunctionDef(self, node):
         """
@@ -135,6 +146,8 @@ class TypeCheckVisitor(ast.NodeTransformer):
 
 def typecheck(f, show_src=False):
     """
+    TODO: Sync this with README automatically.
+
     Decorator which turns annotated assignments of the form
       x : T = e
     into
@@ -181,7 +194,7 @@ def typecheck(f, show_src=False):
     # TODO:
     #   if not isinstance(x, T): raise TypeError("x not of type T")
 
-    node = get_ast_for_function(f)
+    node, filename = get_ast_for_function(f)
     new_node = TypeCheckVisitor().visit(node)
 
     if show_src:
@@ -191,7 +204,7 @@ def typecheck(f, show_src=False):
 
     # Compile new AST to get wrapped function
     try:
-        new_code = compile(new_node, filename="<typecheck>", mode="exec")
+        new_code = compile(new_node, filename=filename, mode="exec")
     except Exception as e:
         # Most compile errors are pretty opaque (https://stackoverflow.com/a/25795966)
         # So call astpretty.  If it succeeds, it's helpful to debug, if it fails, its
@@ -208,3 +221,14 @@ def typecheck(f, show_src=False):
     f_checked = types.FunctionType(f_code, globals=f.__globals__, name=f_name)
     f_checked.__wrapped__ = f
     return f_checked
+
+
+def assert_is_instance(var, annot_type, varname, annot_str):
+    if not isinstance(var, annot_type):
+        raise TypeError(f"{varname} not of type {annot_str}")
+
+
+# How much am I going to regret this?
+# Trying to avoid having to import the module as well as just the
+# typecheck function
+typecheck.assert_is_instance = assert_is_instance

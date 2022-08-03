@@ -23,7 +23,7 @@ def test_typecheck_1():
     assert True, "foo did not raise, as expected"
 
     # Check that argument mismatches also raise
-    with pytest.raises(AssertionError):
+    with pytest.raises(TypeError, match="t not of type float"):
         foo(3, 5)
 
     @typecheck
@@ -35,7 +35,7 @@ def test_typecheck_1():
     foo1.__wrapped__(3, 5)
     assert True, "foo1 did not raise, as expected"
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(TypeError):
         foo1(3, 5)
 
 
@@ -57,7 +57,7 @@ def test_typecheck_jax():
 
     float_array = jnp.ones((3, 5))
 
-    with pytest.raises(AssertionError):
+    with pytest.raises(TypeError):
         foo1(3, float_array)
 
 

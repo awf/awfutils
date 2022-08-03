@@ -25,7 +25,7 @@ With the awfutils `typecheck` decorator, they can...
 ```python
 @typecheck
 def foo(x : int, y : float):
-  z : int = x * y # Now it raises AssertionError: z not int 
+  z : int = x * y # Now it raises TypeError: z not of type int
   w : float = z * 3.2
   return w
 
