@@ -33,6 +33,11 @@ def test_typecheck_1():
 
 
 def test_typecheck_jax():
+    try:
+        import jax
+    except:
+        pytest.skip("No jax")
+
     import jax
     import jax.numpy as jnp
 
@@ -47,3 +52,30 @@ def test_typecheck_jax():
 
     with pytest.raises(AssertionError):
         foo1(3, float_array)
+
+
+def test_typecheck_jaxtyping():
+    try:
+        import jax
+        import jaxtyping
+    except:
+        pytest.skip("No jaxtyping")
+
+    import jax
+    from jaxtyping import f32, u, jaxtyped
+
+    @jaxtyped
+    @typecheck
+    def standardize(x: f32["N"], eps=1e-5) -> f32["N"]:
+        return (x - x.mean()) / (x.std() + eps)
+
+    rng = jax.random.PRNGKey(42)
+
+    embeddings = jax.random.uniform(rng, (11,))
+    t1: f32["N M"] = standardize(embeddings)
+
+    # embeddings = jax.random.uniform(rng, (11,13))
+    # t1 = standardize(embeddings)
+
+    embeddings = jax.random.uniform(rng, (11, 13))
+    t1 = jax.vmap(standardize)(embeddings)
