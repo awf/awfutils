@@ -35,8 +35,20 @@ def test_typecheck_1():
     foo1.__wrapped__(3, 5)
     assert True, "foo1 did not raise, as expected"
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="y not of type float"):
         foo1(3, 5)
+
+    # TODO: Attach or generate code.co_freevars
+    # z_in_outer_scope = 8
+
+    # @typecheck
+    # def foo2(x: int, t: float = 4.2) -> float:
+    #     return x * t * z_in_outer_scope
+
+    # foo2.__wrapped__(3)
+
+    # foo2(3)
+    # assert True, "foo1 did not raise, as expected"
 
 
 def test_typecheck_jax():
@@ -51,13 +63,15 @@ def test_typecheck_jax():
     @jax.jit
     @typecheck_with_src
     def foo1(x: int, t: jnp.ndarray) -> float:
+        assert isinstance(x, int), f"x is {type(x)}"
         y: int = x * t  # Expect to raise here
         z: jnp.ndarray = y / 2
         return z
 
     float_array = jnp.ones((3, 5))
+    foo1.__wrapped__(3, float_array)
 
-    with pytest.raises(TypeError):
+    with pytest.raises(TypeError, match="y not of type int"):
         foo1(3, float_array)
 
 

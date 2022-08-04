@@ -5,6 +5,8 @@ import astpretty
 
 from textwrap import dedent
 
+from icecream import ic  # while debugging
+
 
 def get_ast_for_function(f):
     """
@@ -113,7 +115,9 @@ class TypeCheckVisitor(ast.NodeTransformer):
         from icecream import ic
 
         assert_nodes = [
-            self.make_assert_node(a.arg, a.annotation) for a in node.args.args
+            self.make_assert_node(a.arg, a.annotation)
+            for a in node.args.args
+            if a.annotation
         ]
 
         new_node = ast.FunctionDef(
@@ -125,6 +129,7 @@ class TypeCheckVisitor(ast.NodeTransformer):
             node.type_comment,
         )
         new_node = ast.copy_location(new_node, node)
+
         return new_node
 
     def visit_AnnAssign(self, node):
@@ -218,7 +223,13 @@ def typecheck(f, show_src=False):
 
     f_code = fns[0]
     f_name = f.__name__ + "_typecheck_wrap"
-    f_checked = types.FunctionType(f_code, globals=f.__globals__, name=f_name)
+    f_checked = types.FunctionType(
+        f_code,
+        globals=f.__globals__,
+        name=f_name,
+        argdefs=f.__defaults__,
+        closure=None,
+    )
     f_checked.__wrapped__ = f
     return f_checked
 
