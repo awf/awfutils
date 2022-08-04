@@ -38,6 +38,20 @@ def test_typecheck_1():
     with pytest.raises(TypeError, match="y not of type float"):
         foo1(3, 5)
 
+
+z_in_global_scope = 9
+
+
+def test_typecheck_scope():
+    @typecheck
+    def foo2(x: int, t: float = 4.2) -> float:
+        return x * t * z_in_global_scope
+
+    foo2.__wrapped__(3)
+
+    foo2(3)
+    assert True, "foo1 did not raise, as expected"
+
     # TODO: Attach or generate code.co_freevars
     # z_in_outer_scope = 8
 
