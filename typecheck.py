@@ -149,7 +149,7 @@ class TypeCheckVisitor(ast.NodeTransformer):
         return [node, node_assert]
 
 
-def typecheck(f, show_src=False):
+def typecheck(f, show_src=False, refers=()):
     """
     TODO: Sync this with README automatically.
 
@@ -196,20 +196,66 @@ def typecheck(f, show_src=False):
 
     """
 
-    # TODO:
-    #   if not isinstance(x, T): raise TypeError("x not of type T")
+    f_node, filename = get_ast_for_function(f)
+    f_new_node = TypeCheckVisitor().visit(f_node)  # TODO unplumb empty list
 
-    node, filename = get_ast_for_function(f)
-    new_node = TypeCheckVisitor().visit(node)
+    loc = lambda x: ast.copy_location(x, f_node)
 
-    if show_src:
+    # Now add nodes for freevars
+    #
+    # Why ?  We tried just adding
+    #     f_code = f_code.replace(co_freevars=f.__code__co_freevars)
+    # and
+    #     nonlocal_nodes = (
+    #     [ast.copy_location(ast.Nonlocal(list(*self.freevars)), node)]
+    #     if self.freevars
+    #     else []
+    # )
+    # and other stuff
+    # So...
+
+    # Now add nodes declaring freevars and other needed names
+    #  z_in_outer_scope = ...
+    #  jnp = ...
+    # These will be replaced by the freevars in f.__closure__, but
+    # need to be in scope when compiling the AST
+    # Function may refer to nonlocal names in its argument list,
+    # which can't be declared 'nonlocal', as that declaration is
+    # after the argument list, so we place fakes in scope
+
+    f_freevars = f.__code__.co_freevars if f.__code__.co_freevars else ()
+    f_closure = f.__closure__ if f.__closure__ else ()
+
+    refers_names = tuple(r.__name__ for r in refers) + f_freevars
+    # TODO: Do we need to worry about garbage collection of CellType?
+    refers_closure = tuple(types.CellType(v) for v in refers) + f_closure
+
+    refers_decls = [loc(ast.parse(f"{x} = ...").body[0]) for x in refers_names]
+    new_node = ast.FunctionDef(
+        name="_",
+        args=[],
+        body=refers_decls + f_new_node.body,
+        decorator_list=[],
+        posonlyargs=[],
+        returns=None,
+    )
+    new_node = loc(new_node)
+    ast.fix_missing_locations(new_node)
+    new_node = ast.Module(body=[new_node], type_ignores=[])
+    new_node = loc(new_node)
+
+    if show_src or True:
         print("typecheck: Transformed source code")
         new_src = ast.unparse(new_node)
         print(new_src)
 
     # Compile new AST to get wrapped function
     try:
-        new_code = compile(new_node, filename=filename, mode="exec")
+        if True:
+            new_src = ast.unparse(new_node)
+            new_code = compile(new_src, filename="TODO:linenos" + filename, mode="exec")
+        else:
+            new_code = compile(new_node, filename=filename, mode="exec")
     except Exception as e:
         # Most compile errors are pretty opaque (https://stackoverflow.com/a/25795966)
         # So call astpretty.  If it succeeds, it's helpful to debug, if it fails, its
@@ -218,17 +264,19 @@ def typecheck(f, show_src=False):
         print(msg)
         raise ValueError("See AST printed above") from e
 
-    fns = tuple(k for k in new_code.co_consts if isinstance(k, types.CodeType))
+    konsts = new_code.co_consts[0].co_consts
+    fns = tuple(k for k in konsts if isinstance(k, types.CodeType))
     assert len(fns) == 1, "TODO: Will need a better way to find the code"
 
     f_code = fns[0]
+
     f_name = f.__name__ + "_typecheck_wrap"
     f_checked = types.FunctionType(
         f_code,
         globals=f.__globals__,
         name=f_name,
         argdefs=f.__defaults__,
-        closure=None,
+        closure=refers_closure,
     )
     f_checked.__wrapped__ = f
     return f_checked
@@ -236,7 +284,9 @@ def typecheck(f, show_src=False):
 
 def assert_is_instance(var, annot_type, varname, annot_str):
     if not isinstance(var, annot_type):
-        raise TypeError(f"{varname} not of type {annot_str}")
+        raise TypeError(
+            f"{varname} not of type {annot_str}, was {type(var)}, value {var}"
+        )
 
 
 # How much am I going to regret this?
