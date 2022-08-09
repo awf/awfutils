@@ -1,3 +1,4 @@
+import sys
 import types
 import ast
 import inspect
@@ -6,6 +7,28 @@ import astpretty
 from textwrap import dedent
 
 from icecream import ic  # while debugging
+
+
+def new_ast_arguments():
+    if sys.version_info >= (3, 8):
+        return ast.arguments(
+            posonlyargs=[],
+            args=[],
+            vararg=None,
+            kwonlyargs=[],
+            kw_defaults=[],
+            kwarg=None,
+            defaults=[],
+        )
+    else:
+        return ast.arguments(
+            args=[],
+            vararg=None,
+            kwonlyargs=[],
+            kw_defaults=[],
+            kwarg=None,
+            defaults=[],
+        )
 
 
 def get_ast_for_function(f):
@@ -197,7 +220,7 @@ def typecheck(f, show_src=False, refers=()):
     """
 
     f_node, filename = get_ast_for_function(f)
-    f_new_node = TypeCheckVisitor().visit(f_node)  # TODO unplumb empty list
+    f_new_node = TypeCheckVisitor().visit(f_node)
 
     loc = lambda x: ast.copy_location(x, f_node)
 
@@ -225,18 +248,33 @@ def typecheck(f, show_src=False, refers=()):
 
     f_freevars = f.__code__.co_freevars if f.__code__.co_freevars else ()
     f_closure = f.__closure__ if f.__closure__ else ()
+    f_free_dict = {n: v for (n, v) in zip(f_freevars, f_closure)}
 
-    refers_names = tuple(r.__name__ for r in refers) + f_freevars
+    for r in refers:
+        if r.__name__ in f_freevars:
+            raise ValueError(f"Refers var {r.__name__} already in freevars")
+
     # TODO: Do we need to worry about garbage collection of CellType?
-    refers_closure = tuple(types.CellType(v) for v in refers) + f_closure
+    refers_free_dict = {r.__name__: types.CellType(r) for r in refers}
 
-    refers_decls = [loc(ast.parse(f"{x} = ...").body[0]) for x in refers_names]
+    free_dict = {**f_free_dict, **refers_free_dict}
+
+    refers_decls_names = tuple(r.__name__ for r in refers) + f_freevars
+    refers_decls = [
+        loc(ast.parse(f"{rdn} = ...").body[0]) for rdn in refers_decls_names
+    ]
+
+    # Make a non-top-level function to hold the refers decls
+    # def _():
+    #    refers1 = ...
+    #    refers2 = ...
+    #
+    #    def <f>_wrapped(...):
     new_node = ast.FunctionDef(
         name="_",
-        args=[],
+        args=new_ast_arguments(),
         body=refers_decls + f_new_node.body,
         decorator_list=[],
-        posonlyargs=[],
         returns=None,
     )
     new_node = loc(new_node)
@@ -244,18 +282,20 @@ def typecheck(f, show_src=False, refers=()):
     new_node = ast.Module(body=[new_node], type_ignores=[])
     new_node = loc(new_node)
 
-    if show_src or True:
+    if show_src:
         print("typecheck: Transformed source code")
         new_src = ast.unparse(new_node)
         print(new_src)
 
     # Compile new AST to get wrapped function
+    wrapped_filename = "TODO:linenos" + filename
     try:
-        if True:
+        if False:
+            # Sometimes, for debugging, really compile the printed source
             new_src = ast.unparse(new_node)
-            new_code = compile(new_src, filename="TODO:linenos" + filename, mode="exec")
+            new_code = compile(new_src, filename=wrapped_filename, mode="exec")
         else:
-            new_code = compile(new_node, filename=filename, mode="exec")
+            new_code = compile(new_node, filename=wrapped_filename, mode="exec")
     except Exception as e:
         # Most compile errors are pretty opaque (https://stackoverflow.com/a/25795966)
         # So call astpretty.  If it succeeds, it's helpful to debug, if it fails, its
@@ -276,7 +316,7 @@ def typecheck(f, show_src=False, refers=()):
         globals=f.__globals__,
         name=f_name,
         argdefs=f.__defaults__,
-        closure=refers_closure,
+        closure=tuple(free_dict[v] for v in f_code.co_freevars),
     )
     f_checked.__wrapped__ = f
     return f_checked

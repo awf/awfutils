@@ -1,4 +1,10 @@
 {
   "python.formatting.provider": "black",
-  "editor.formatOnSave": true
+  "editor.formatOnSave": true,
+  "python.testing.pytestArgs": [
+    "--capture=no", // Otherwise can't print in vs code debug console
+    "."
+  ],
+  "python.testing.unittestEnabled": false,
+  "python.testing.pytestEnabled": true
 }
