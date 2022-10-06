@@ -73,7 +73,7 @@ def my_quick_hack(xs, qs):
 
 Now, even if  `my_quick_hack` is far down the call tree from main, you can quickly try some values of `tau` by just running
 ```sh
-$ python main.py -tau 0.0001
+$ python main.py -mqh-tau 0.0001
 ```
 
 More conventionally, `Arg` is also useful in `main`:
