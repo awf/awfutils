@@ -109,3 +109,45 @@ jit_foo = Arg("jit-foo", False, "Run JIT on foo")
 if jit_foo.peek(): # Just check for this arg in sys.argv
     foo = jit(foo)
 ```
+
+
+# PyTree Utils
+
+Various smoothers for `torch.utils._pytree`.
+
+Given a nest of lists and tuples, perform various useful funcions.
+
+For example, given the object `val` as follows:
+```py
+val = ( # tuple
+        [ # list
+          1, 
+          (np.random.rand(2, 3), "b", np.random.rand(12, 13)),
+          3
+        ], 
+        "fred"
+      )
+```
+Then `PyTree.map(foo, val)` will make these six calls to `foo`:
+```py
+foo(1), 
+foo(np.random.rand(2, 3))
+foo("b")
+foo(np.random.rand(12, 13))
+foo(3)
+foo("fred")
+```
+
+And given a numeric-only pytree, e.g.
+```py
+val = ( # tuple
+        [ # list
+          1, 
+          (np.random.rand(2, 3), np.random.rand(12, 13))
+        ]
+      )
+```
+Then arithmetic can be performed on `PyTree`s, e.g.
+```
+(PyTree(val) + val) * val == 2 * PyTree(val) * val
+```
