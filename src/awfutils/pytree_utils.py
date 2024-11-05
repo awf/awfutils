@@ -1,7 +1,7 @@
 import operator
-from icecream import ic
+
 import torch
-from torch.utils._pytree import tree_map, tree_flatten, tree_unflatten
+from torch.utils._pytree import tree_flatten, tree_map, tree_unflatten
 
 
 def testing_vals():

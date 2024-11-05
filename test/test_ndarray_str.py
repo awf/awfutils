@@ -1,5 +1,6 @@
-from ndarray_str import ndarray_str
 import numpy as np
+
+from awfutils import ndarray_str
 
 
 def mx(dtype, *sz):

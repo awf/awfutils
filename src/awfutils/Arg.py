@@ -1,6 +1,6 @@
 import argparse
-from typing import Any, Dict, Type
 import sys
+from typing import Any, Dict, Type
 
 
 class Arg:

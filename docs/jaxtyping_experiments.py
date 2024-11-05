@@ -1,13 +1,11 @@
 import inspect
-from prettyprinter import pprint
-
 from functools import partial
 
 import jax
 import jax.numpy as jnp
-
 import jaxtyping
 from jaxtyping import f32, jaxtyped
+from prettyprinter import pprint
 
 int_t = jaxtyping.i[""]
 
@@ -17,6 +15,8 @@ typecheck_show_src = partial(typecheck, show_src=True)
 
 
 rng = jax.random.PRNGKey(42)
+
+
 # Don't even bother threading rng
 def rand(*args):
     return jax.random.uniform(rng, args)
@@ -106,8 +106,8 @@ exit(0)
 
 
 def f_nested_imports():
-    from jaxtyping import i, f32
     import jax.numpy as jnp
+    from jaxtyping import f32, i
 
     z_in_outer_scope = 9.9
 

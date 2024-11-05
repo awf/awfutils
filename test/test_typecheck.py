@@ -1,11 +1,9 @@
-import pytest
-
-from typecheck import typecheck
+from contextlib import nullcontext as does_not_raise
 from functools import partial
 
-from contextlib import nullcontext as does_not_raise
+import pytest
 
-from icecream import ic
+from awfutils import typecheck
 
 typecheck_show_src = partial(typecheck, show_src=True)
 
@@ -83,7 +81,7 @@ def test_typecheck_jax():
         z: jnp.ndarray = y / 2
         return z
 
-    ic(isinstance(3, jnp.ndarray))
+    print(f"{isinstance(3, jnp.ndarray)=}")
 
     float_array = jnp.ones((3, 5))
 
@@ -103,7 +101,7 @@ def test_typecheck_jaxtyping1():
         pytest.skip("No jax or jaxtyping")
 
     import jax
-    from jaxtyping import f32, u, jaxtyped
+    from jaxtyping import f32, jaxtyped, u
 
     # int_t = jaxtyping.i[""] TODO
 
@@ -127,7 +125,7 @@ def test_typecheck_jaxtyping2():
     except:
         pytest.skip("No jaxtyping")
 
-    from jaxtyping import jaxtyped, f32
+    from jaxtyping import f32, jaxtyped
 
     rng = jax.random.PRNGKey(42)
     vec_f32 = jax.random.uniform(rng, (11,))

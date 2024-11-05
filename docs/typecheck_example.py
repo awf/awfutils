@@ -1,4 +1,5 @@
 import functools
+
 from typecheck import typecheck
 
 
