@@ -44,7 +44,7 @@ def foo_typecheck_wrap(x: int, y: float):
     assert isinstance(w, float), 'w not of type float'
     return w
 ```
-Because it's AST transformation it is basically literally the above code, 
+Because it _is_ AST transformation, it is basically literally the above code, 
 which you can see with the optional argument show_src=True
 ```python
 @functools.partial(typecheck, show_src=True)
