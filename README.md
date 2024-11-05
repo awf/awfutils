@@ -54,6 +54,26 @@ def foo(x : int, y : float):
   return w
 ```
 
+# Tensor pretty-printing
+
+It's handy to print a one-line summary of the contents of a tensor.
+
+```python
+a = np.random.rand(2, 1, 3) - 0.2
+print(au.ndarray_str(a**6 * 1e7))
+```
+outputs
+```
+f64[2x1x3] 10^5 x [0.181 5.555 1.721 1.462 0.001 0.000]
+```
+Easy to read, even with only 3 significant figures (see the leading ``10^5x``).
+
+For larger tensors, show percentiles:
+```
+f32[22x11x33] 10^-7 x Percentiles{0.002|0.493|2.470|4.958|7.490|9.434|9.996}
+              ^scale            0 (min)|   5%|  25%|  50%|  75%|  95%|100% (max)
+```
+
 # Arg
 
 A distributed argument parser, like absl flags, but a little more convenient and less stringy.
