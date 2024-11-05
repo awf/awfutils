@@ -44,7 +44,7 @@ def foo_typecheck_wrap(x: int, y: float):
     assert isinstance(w, float), 'w not of type float'
     return w
 ```
-Because it _is_ AST transformation, it is basically literally the above code, 
+Because it _is_ AST transformation, it is basically literally the above code,
 which you can see with the optional argument show_src=True
 ```python
 @functools.partial(typecheck, show_src=True)
@@ -121,8 +121,8 @@ jit_foo = Arg("jit-foo", False, "Run JIT on foo")
 if jit_foo():   # Prefer jit_foo.peek() for load-time checks
     foo = jit(foo)
 ```
-The call to `jit_foo()` will know only about arguments declared before that 
-point, so a call to `--help` will produce too short a list.  
+The call to `jit_foo()` will know only about arguments declared before that
+point, so a call to `--help` will produce too short a list.
 This is remedied later but is better avoided:
 ```python
 jit_foo = Arg("jit-foo", False, "Run JIT on foo")
@@ -141,16 +141,16 @@ For example, given the object `val` as follows:
 ```py
 val = ( # tuple
         [ # list
-          1, 
+          1,
           (np.random.rand(2, 3), "b", np.random.rand(12, 13)),
           3
-        ], 
+        ],
         "fred"
       )
 ```
 Then `PyTree.map(foo, val)` will make these six calls to `foo`:
 ```py
-foo(1), 
+foo(1),
 foo(np.random.rand(2, 3))
 foo("b")
 foo(np.random.rand(12, 13))
@@ -162,7 +162,7 @@ And given a numeric-only pytree, e.g.
 ```py
 val = ( # tuple
         [ # list
-          1, 
+          1,
           (np.random.rand(2, 3), np.random.rand(12, 13))
         ]
       )
