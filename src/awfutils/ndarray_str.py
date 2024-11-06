@@ -58,10 +58,8 @@ def ndarray_str(x):
         # Assume integer, print as integers
         vals_str = head + sep.join(f"{int(v)}" for v in vals) + tail
 
-    classname = "" if isinstance(x, np.ndarray) else (type(x).__name__ + ":")
-
     dtype_str = (
         f"{x.dtype}".replace("float", "f").replace("uint", "u").replace("int", "i")
     )
 
-    return f"{classname}{dtype_str}[{shape_str}] {vals_str}{notes}"
+    return f"{dtype_str}[{shape_str}] {vals_str}{notes}"
