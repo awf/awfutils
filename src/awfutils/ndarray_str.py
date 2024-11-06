@@ -20,14 +20,20 @@ def ndarray_str(x):
         return repr(x)
 
     shape_str = "x".join(map(str, x.shape))
+    dtype_str = (
+        f"{x.dtype}".replace("float", "f").replace("uint", "u").replace("int", "i")
+    )
+    type_str = f"{dtype_str}[{shape_str}]"
 
     notes = ""
     finite_vals = x[np.isfinite(x)]
-    if x.size <= 6:
+    all_finite = finite_vals.size == x.size
+    display_all = x.size <= 6
+    if display_all:
         vals = x.flatten()
         head, sep, tail = "[", " ", "]"
     else:
-        if finite_vals.size != x.size:
+        if not all_finite:
             notes += f" #inf={np.isinf(x).sum()} #nan={np.isnan(x).sum()}"
 
         if x.size < 1e6:
@@ -53,7 +59,10 @@ def ndarray_str(x):
         else:
             max_scale = 1
             max_scale_str = ""
-            vals_str = "Zeros"
+            if display_all:
+                vals_str = head + sep.join(f"{v}" for v in vals) + tail
+            else:
+                vals_str = "Zeros"
     else:
         # Assume integer, print as integers
         vals_str = head + sep.join(f"{int(v)}" for v in vals) + tail
@@ -62,4 +71,4 @@ def ndarray_str(x):
         f"{x.dtype}".replace("float", "f").replace("uint", "u").replace("int", "i")
     )
 
-    return f"{dtype_str}[{shape_str}] {vals_str}{notes}"
+    return f"{type_str} {vals_str}{notes}"

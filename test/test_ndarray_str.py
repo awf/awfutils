@@ -28,6 +28,7 @@ def test_ndarray_str():
         [1, 2, 3, 4, 5, np.inf, np.inf, np.nan],
         "f64[8] Percentiles{1.000 1.000 2.000 3.000 4.000 5.000 5.000} #inf=2 #nan=1",
     )
+    go([0.0, 0.0, np.nan], "f64[3] [0.0 0.0 nan]")
 
 
 def test_zeros():
