@@ -32,9 +32,9 @@ def test_ndarray_str():
 
 
 def test_zeros():
-    go(np.zeros([]), "f64[] Zeros")
-    go(np.zeros(0), "f64[0] Zeros")
-    go(np.zeros(1), "f64[1] Zeros")
+    go(np.zeros([]), "f64[] [0.0]")
+    go(np.zeros(0), "f64[0] []")
+    go(np.zeros(1), "f64[1] [0.0]")
     go(np.zeros(100), "f64[100] Zeros")
     go(np.zeros((100, 100, 101), dtype=np.float16), "f16[100x100x101] Zeros")
 
