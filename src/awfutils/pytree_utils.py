@@ -1,10 +1,10 @@
 import operator
 
 import torch
-from torch.utils._pytree import tree_flatten, tree_map, tree_unflatten
+from torch.utils._pytree import tree_map, tree_flatten, tree_unflatten
 
 
-def testing_vals():
+def _testing_vals():
     val = (torch.tensor(1.123), torch.randn(3, 5))
     A = pt_rand_like(val)
     return val, A
@@ -41,8 +41,20 @@ def pt_dot(A, B):
     return sum(dots)
 
 
+def pt_maxabs(tree):
+    leaves, spec = tree_flatten(tree)
+    return max(l.abs().max() for l in leaves)
+
+
+def test_maxabs():
+    val = (torch.tensor(1.123), torch.tensor([3, -5.2, 4.2]))
+    torch.testing.assert_close(pt_maxabs(val).item(), 5.2)
+    val = (torch.tensor(6.123), torch.tensor([3, -5.2, 4.2]))
+    torch.testing.assert_close(pt_maxabs(val).item(), 6.123)
+
+
 def test_dot():
-    val, A = testing_vals()
+    val, A = _testing_vals()
     torch.testing.assert_close(pt_dot(val, A), val[0] * A[0] + (val[1] * A[1]).sum())
 
 
@@ -51,7 +63,7 @@ def pt_mul(A, B):
 
 
 def test_mul():
-    val, A = testing_vals()
+    val, A = _testing_vals()
     torch.testing.assert_close(pt_mul(val, A), (val[0] * A[0], val[1] * A[1]))
 
 
@@ -60,7 +72,7 @@ def pt_add(A, B):
 
 
 def test_add():
-    val, A = testing_vals()
+    val, A = _testing_vals()
     torch.testing.assert_close(pt_add(val, A), (val[0] + A[0], val[1] + A[1]))
 
 
@@ -69,7 +81,7 @@ def pt_sub(A, B):
 
 
 def test_sub():
-    val, A = testing_vals()
+    val, A = _testing_vals()
     torch.testing.assert_close(pt_sub(val, A), (val[0] - A[0], val[1] - A[1]))
 
 
@@ -123,13 +135,13 @@ class PyTree:
     def assert_close(cls, A, B, verbose=False):
         A, B = PyTree(A).val, PyTree(B).val
         if verbose:
-            ic(A)
-            ic(B)
+            print(A)
+            print(B)
         torch.testing.assert_close(A, B)
 
 
 def test_PyTree():
-    val, A = testing_vals()
+    val, A = _testing_vals()
 
     pval = PyTree.rand_like(val)
     val = pval.val
@@ -142,7 +154,7 @@ def test_PyTree():
     PyTree.assert_close(pa * 1.23, 1.23 * pa)
 
 
-def test_PyTree_with_non_foats():
+def test_PyTree_with_non_floats():
     val = ([1, (torch.rand(2, 3), torch.tensor(3.4), torch.rand(12, 13)), 3], "fred")
 
     PyTree.map(lambda x: print("x", type(x).__name__), val)
