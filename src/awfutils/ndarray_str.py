@@ -28,10 +28,19 @@ def ndarray_str(x):
     notes = ""
     finite_vals = x[np.isfinite(x)]
     all_finite = finite_vals.size == x.size
-    display_all = x.size <= 6
+    display_all = x.size <= 10
+
+    def disp(a, fmt):
+        if len(a.shape) > 1:
+            return "[" + "], [".join(disp(e, fmt) for e in a) + "]"
+        elif len(a.shape) > 0:
+            return " ".join(fmt.format(v=v) for v in a)
+        else:
+            return fmt.format(v=a)
+
     if display_all:
-        vals = x.flatten()
-        head, sep, tail = "[", " ", "]"
+        vals = x
+        head, tail = "[", "]"
     else:
         if not all_finite:
             notes += f" #inf={np.isinf(x).sum()} #nan={np.isnan(x).sum()}"
@@ -39,11 +48,11 @@ def ndarray_str(x):
         if x.size < 1e6:
             quantiles = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0]
             vals = np.quantile(finite_vals, quantiles, method="nearest")
-            head, sep, tail = "Percentiles{", " ", "}"
+            head, tail = "Percentiles{", "}"
         else:
             # Too large to sort, just show min, median, max
             vals = finite_vals.min(), np.median(finite_vals), finite_vals.max()
-            head, sep, tail = "MinMedMax{", " ", "}"
+            head, tail = "MinMedMax{", "}"
 
     if np.issubdtype(x.dtype, np.floating):
         # scale down vals
@@ -54,18 +63,18 @@ def ndarray_str(x):
                 logmax = 0
             max_scale = 10**-logmax
             max_scale_str = f"10^{int(logmax)} x " if logmax != 0 else ""
-            vals_str = sep.join(f"{v.item():.3f}" for v in vals * max_scale)
+            vals_str = disp(vals * max_scale, "{v:.3f}")
             vals_str = max_scale_str + head + vals_str + tail
         else:
             max_scale = 1
             max_scale_str = ""
             if display_all:
-                vals_str = head + sep.join(f"{v}" for v in vals) + tail
+                vals_str = head + disp(vals, "{v}") + tail
             else:
                 vals_str = "Zeros"
     else:
         # Assume integer, print as integers
-        vals_str = head + sep.join(f"{int(v)}" for v in vals) + tail
+        vals_str = head + disp(vals, "{v:d}") + tail
 
     dtype_str = (
         f"{x.dtype}".replace("float", "f").replace("uint", "u").replace("int", "i")
