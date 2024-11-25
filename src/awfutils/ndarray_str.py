@@ -16,8 +16,18 @@ def ndarray_str(x):
 
     See the notebook <11-utils.ipynb> for more information.
     """
+
+    def size(x):
+        """
+        Size, for torch or np
+        """
+        return np.prod(x.shape)
+
     if not hasattr(x, "__array__"):
         return repr(x)
+
+    # Convert to numpy array - TODO: do this after we know it's small enough
+    x = np.array(x)
 
     shape_str = "x".join(map(str, x.shape))
     dtype_str = (
@@ -27,8 +37,8 @@ def ndarray_str(x):
 
     notes = ""
     finite_vals = x[np.isfinite(x)]
-    all_finite = finite_vals.size == x.size
-    display_all = x.size <= 10
+    all_finite = size(finite_vals) == size(x)
+    display_all = size(x) <= 10
 
     def disp(a, fmt):
         if len(a.shape) > 1:
@@ -45,7 +55,7 @@ def ndarray_str(x):
         if not all_finite:
             notes += f" #inf={np.isinf(x).sum()} #nan={np.isnan(x).sum()}"
 
-        if x.size < 1e6:
+        if size(x) < 1e6:
             quantiles = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0]
             vals = np.quantile(finite_vals, quantiles, method="nearest")
             head, tail = "Percentiles{", "}"
@@ -56,7 +66,7 @@ def ndarray_str(x):
 
     if np.issubdtype(x.dtype, np.floating):
         # scale down vals
-        max = np.abs(finite_vals).max() if finite_vals.size else 0
+        max = np.abs(finite_vals).max() if size(finite_vals) else 0
         if max > 0:
             logmax = np.floor(np.log10(max))
             if -2 <= logmax <= 3:

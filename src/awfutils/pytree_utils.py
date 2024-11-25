@@ -1,7 +1,11 @@
 import operator
 
+from prettyprinter import cpprint, pformat
+
 import torch
 from torch.utils._pytree import tree_map, tree_flatten, tree_unflatten
+
+from awfutils import ndarray_str
 
 
 def _testing_vals():
@@ -154,13 +158,39 @@ def test_PyTree():
     PyTree.assert_close(pa * 1.23, 1.23 * pa)
 
 
+def _strval(x):
+    """
+    Convert x to string value, one line
+    """
+    s = pformat(x).replace("\n", "\\n")
+    return s[:40]
+
+
+def pt_print(tag, x, printer=print, strval=None):
+    if isinstance(x, tuple):
+        l = len(x)
+        for i in range(l):
+            pt_print(tag + f"[{i}]:", x[i], printer=printer, strval=strval)
+    elif isinstance(x, list):
+        printer(tag + "[")
+        for v in x:
+            pt_print(tag + "| ", v, printer=printer, strval=strval)
+        printer(tag + "]")
+    else:
+        printer(tag + strval(x))
+
+
 def test_PyTree_with_non_floats():
-    val = ([1, (torch.rand(2, 3), torch.tensor(3.4), torch.rand(12, 13)), 3], "fred")
+    val = (
+        "tuple",
+        [1, (torch.rand(2, 3), [1, 2, 3, 4], torch.tensor(3.4), torch.rand(12, 13)), 3],
+        "fred",
+    )
 
-    PyTree.map(lambda x: print("x", type(x).__name__), val)
+    # Just a crash check TODO: inspect output
+    pt_print("val", val, strval=ndarray_str)
 
-    # # Just a crash check TODO: inspect output
-    # soprint("val", val)
+    # print(cpprint(pt_map(ndarray_str, val)))
 
     # # val is a tuple(list[int, tuple(array, str, array), int], str)
     # lens = somap(typestr, val)
