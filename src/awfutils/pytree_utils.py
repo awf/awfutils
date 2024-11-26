@@ -166,7 +166,7 @@ def _strval(x):
     return s[:40]
 
 
-def pt_print(tag, x, printer=print, strval=None):
+def pt_print(tag, x, printer=print, strval=_strval):
     if isinstance(x, tuple):
         l = len(x)
         for i in range(l):
