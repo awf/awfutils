@@ -1,11 +1,14 @@
 import operator
+from types import FunctionType, BuiltinFunctionType
+from typing import Type
 
 from prettyprinter import cpprint, pformat
 
 import torch
 from torch.utils._pytree import tree_map, tree_flatten, tree_unflatten
 
-from awfutils import ndarray_str
+from .ndarray_str import ndarray_str
+from .print_utils import fn_name, class_name
 
 
 def _testing_vals():
@@ -161,16 +164,40 @@ def test_PyTree():
 def _strval(x):
     """
     Convert x to string value, one line
+
+    Any default renders that would include non-repeatable
+    information (e.g. object id) are overridden here.
     """
+    if isinstance(x, FunctionType):
+        return "function " + fn_name(x)
+
+    if isinstance(x, BuiltinFunctionType):
+        return "builtin " + x.__name__
+
+    if isinstance(x, Type):
+        return "class " + class_name(x)
+
+    if isinstance(x, tuple):
+        # This will happen when we are printing a dict key, and the key is a tuple
+        # Assume entries are small
+        return "(" + ", ".join(map(_strval, x)) + ")"
+
     s = pformat(x).replace("\n", "\\n")
     return s[:40]
 
 
 def pt_print(tag, x, printer=print, strval=_strval):
+    """
+    Print a PyTree, with tag prefix, and compactly printing tensors
+    Assumes that dict keys are "simple" in the sense that they render well in 40 chars.
+    """
     if isinstance(x, tuple):
         l = len(x)
         for i in range(l):
             pt_print(tag + f"[{i}]:", x[i], printer=printer, strval=strval)
+    elif isinstance(x, dict):
+        for k in x:
+            pt_print(tag + f"[{_strval(k)}]:", x[k], printer=printer, strval=strval)
     elif isinstance(x, list):
         printer(tag + "[")
         for v in x:

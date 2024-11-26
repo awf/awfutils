@@ -11,5 +11,6 @@ from .pytree_utils import (
     pt_sum,
     pt_print,
 )
+from .print_utils import fn_name, class_name
 from .typecheck import get_ast_for_function, typecheck
 from .ml_collections_tools import update_from_argv
