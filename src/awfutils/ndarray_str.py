@@ -3,11 +3,11 @@ import numpy as np
 
 def ndarray_str(x):
     """
-    Nicely print a tensor on one line.
+    Nicely print an ndarray on one line.
 
     Small tensors are printed in the format::
 
-      Tensor(2x1x3,f32) 10^6 x [0.065 1.741 0.013 0.000 0.172 1.334]
+      f23[2x1x3] 10^6 x [[[0.065 1.741 0.013]], [[0.000 0.172 1.334]]]
 
     While larger tensors are printed as Percentiles:
 
