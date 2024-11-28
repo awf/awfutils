@@ -182,6 +182,9 @@ def _strval(x):
         # Assume entries are small
         return "(" + ", ".join(map(_strval, x)) + ")"
 
+    if isinstance(x, torch.Tensor):
+        return "Tensor " + ndarray_str(x.detach().cpu().numpy())
+
     s = pformat(x).replace("\n", "\\n")
     return s[:40]
 
