@@ -206,6 +206,9 @@ def pt_print(tag, x, printer=print, strval=_strval):
         for v in x:
             pt_print(tag + "| ", v, printer=printer, strval=strval)
         printer(tag + "]")
+    elif isinstance(x, torch.nn.Module):
+        for k, v in x.named_parameters():
+            pt_print(tag + f".{k}=", v, printer=printer, strval=strval)
     else:
         printer(tag + strval(x))
 

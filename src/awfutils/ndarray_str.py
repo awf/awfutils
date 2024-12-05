@@ -61,7 +61,9 @@ def ndarray_str(x):
             head, tail = "Percentiles{", "}"
         else:
             # Too large to sort, just show min, median, max
-            vals = finite_vals.min(), np.median(finite_vals), finite_vals.max()
+            vals = np.array(
+                [finite_vals.min(), np.median(finite_vals), finite_vals.max()]
+            )
             head, tail = "MinMedMax{", "}"
 
     if np.issubdtype(x.dtype, np.floating):
