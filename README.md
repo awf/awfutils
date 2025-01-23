@@ -114,17 +114,17 @@ with MkSweep("mytmp") as ms:
   for lr in (0.00003, 0.0001, 0.0003, 0.001):
       ms.add(f"python myrun.py --lr={lr}")
 ```
-which, when run, creates a `Makefile` in folder `mytmp` which contains target definitions like
-```makefile
-mytmp/926fa3d0/done.txt: # if done.txt doesn't exist
-	python myrun.py --lr=0.00003 >& mytmp/926fa3d0/log.txt
-	touch $@ # Create the "done" file
-```
-so that
+which, when run, creates a `Makefile` in folder `mytmp` so that
 ```sh
 make -f mytmp/Makefile
 ```
 will execute any undone commands, leaving outputs and logs in the subfolders of `mytmp`.
+
+If I want to run multiple commmands in parallel, up to a maximum of `N` concurrent jobs, 
+I can just use `make -j<N>`
+```sh
+make -f mytmp/Makefile -j4 # Run up to 4 jobs in parallel
+```
 
 If we edit the sweep definition to include an extra `lr`, and a baseline run:
 ```py
@@ -150,6 +150,17 @@ In python you can just write
 ```
 Now in this case, the command hashing would not have run both commands anyway, 
 but other constraints, e.g. $\alpha \le \beta \le \alpha^2$ are easily handled because the specification is all in Python.
+
+### I know makefiles, tell me more?
+We use make, rather than any more sophisticated build system because the complex logic
+of command assembly lives in Python, meaning the makefile can be very simple.
+Here's a snippet of the makefile that's generated.
+```makefile
+mytmp/926fa3d0/done.txt: # if done.txt doesn't exist
+	python myrun.py --lr=0.00003 >& mytmp/926fa3d0/log.txt
+	touch $@ # Create the "done" file
+```
+I'll probably switch it to Ninja if I find a use case that I can't hack in make.
 
 # Arg
 
