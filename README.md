@@ -74,6 +74,84 @@ f32[22x11x33] 10^-7 x Percentiles{0.002|0.493|2.470|4.958|7.490|9.434|9.996}
               ^scale            0 (min)|   5%|  25%|  50%|  75%|  95%|100% (max)
 ```
 
+# MkSweep:  Simple sweeps via makefile
+
+How do you specify a sweep?  In one sense, it's easy - you generally just want to
+run a series of commands, with different command-line arguments:
+```sh
+python myrun.py --lr=0.00003
+python myrun.py --lr=0.0001
+python myrun.py --lr=0.0003
+python myrun.py --lr=0.001
+```
+A few properties we might like are:
+
+  * Interruptable: if a job fails, or if a machine fails, we can easily
+    resume the sweep without re-running already-finished jobs.
+    Similarly, if we change the sweep definition slightly, we don't want to rerun jobs
+    that were in previous sweeps.
+
+  * Flexibile: we can define complex combinations of configurations, 
+    rather than simple grids.
+
+  * Parallel: we can easily run jobs in parallel up to the resource limits 
+    of available hardware
+
+  * Portable: we can easily set up a sweep without installing a lot of infrastructure
+
+These properties are reminiscent of those one might want in a large software build 
+system, so `MkSweep` simply puts the series of commands into a classic `Makefile`,
+which can be called in order to run them.  Each command is given an output directory 
+which is a hash of its command line, so that re-running the same command will re-use the outputs.  The output's "done" marker is not updated until the command is successfully completed, so an interrupted command will always re-run until it completes successfully.
+
+To specify which commands to run, we use a python script rather than any sort of YAML 
+file, for reasons which, if not apparent immediately, should become reasonable when 
+we see more complex examples.  For the above simple learning rate sweep, the definition is:
+```py
+from awfutils import MkSweep
+with MkSweep("mytmp") as ms:
+  for lr in (0.00003, 0.0001, 0.0003, 0.001):
+      ms.add(f"python myrun.py --lr={lr}")
+```
+which, when run, creates a `Makefile` in folder `mytmp` which contains target definitions like
+```makefile
+mytmp/926fa3d0/done.txt: # if done.txt doesn't exist
+	python myrun.py --lr=0.00003 >& mytmp/926fa3d0/log.txt
+	touch $@ # Create the "done" file
+```
+so that
+```sh
+make -f mytmp/Makefile
+```
+will execute any undone commands, leaving outputs and logs in the subfolders of `mytmp`.
+
+If we edit the sweep definition to include an extra `lr`, and a baseline run:
+```py
+from awfutils import MkSweep
+with MkSweep("mytmp") as ms:
+	ms.add(f"python myrun.py --no-lr") # "No LR" is some alternative option
+  for lr in (0.00003, 0.0001, 0.0003, 0.001, 0.003):
+      ms.add(f"python myrun.py --lr={lr}")
+```
+then re-running `make -f mytmp/Makefile` will just run the parts that have not been marked as done, which in this case would mean the new command for lr=0.003, and the new "No LR" command.
+
+If we want to re-run everything (for example the code changed), then we can just remove the `mytmp` folders, or just make a new sweep folder e.g. `sweeps/run2`
+
+### Why python, not YAML?
+I have some problem with hyperparameters "alpha" and "beta", and I'm testing the idea 
+that you should set beta to 1-alpha, while existing work sets it either to .99 or .999.
+
+With a traditional sweeping infrastructure, configured via YAML files, it would be hard 
+to encode the special rule that you don't need to run 1-alpha if it equals beta.
+In python you can just write
+```py
+	for alpha in [1e-4, 3e-4, 1e-3]:
+		for beta in set([0.99, 0.999, 1-alpha]): # deduplicate betas
+			ms.add(f"python myrun.py --alpha={alpha} --beta={beta}")
+```
+Now in this case, the command hashing would not have run both commands anyway, 
+but other constraints, e.g. $\alpha \le \beta \le \alpha^2$ are easily handled because the specification is all in Python.
+
 # Arg
 
 A distributed argument parser, like absl flags, but a little more convenient and less stringy.
