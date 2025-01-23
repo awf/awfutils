@@ -110,6 +110,7 @@ we see more complex examples.  For the above simple learning rate sweep, the def
 ```py
 from awfutils import MkSweep
 with MkSweep("mytmp") as ms:
+  # Define sweep here:
   for lr in (0.00003, 0.0001, 0.0003, 0.001):
       ms.add(f"python myrun.py --lr={lr}")
 ```
@@ -127,9 +128,7 @@ will execute any undone commands, leaving outputs and logs in the subfolders of 
 
 If we edit the sweep definition to include an extra `lr`, and a baseline run:
 ```py
-from awfutils import MkSweep
-with MkSweep("mytmp") as ms:
-	ms.add(f"python myrun.py --no-lr") # "No LR" is some alternative option
+  ms.add(f"python myrun.py --no-lr") # "No LR" is some baseline config
   for lr in (0.00003, 0.0001, 0.0003, 0.001, 0.003):
       ms.add(f"python myrun.py --lr={lr}")
 ```
@@ -145,9 +144,9 @@ With a traditional sweeping infrastructure, configured via YAML files, it would 
 to encode the special rule that you don't need to run 1-alpha if it equals beta.
 In python you can just write
 ```py
-	for alpha in [1e-4, 3e-4, 1e-3]:
-		for beta in set([0.99, 0.999, 1-alpha]): # deduplicate betas
-			ms.add(f"python myrun.py --alpha={alpha} --beta={beta}")
+  for alpha in [1e-4, 3e-4, 1e-3]:
+    for beta in set([0.99, 0.999, 1-alpha]): # deduplicate betas
+      ms.add(f"python myrun.py --alpha={alpha} --beta={beta}")
 ```
 Now in this case, the command hashing would not have run both commands anyway, 
 but other constraints, e.g. $\alpha \le \beta \le \alpha^2$ are easily handled because the specification is all in Python.
