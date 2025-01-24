@@ -92,7 +92,7 @@ In managing such a list, a few properties we might like are:
     Similarly, if we change the sweep definition slightly, we don't want to rerun jobs
     that were in previous sweeps.
 
-  * Flexibile: we can define complex combinations of configurations, 
+  * Flexible: we can define complex combinations of configurations, 
     rather than simple grids.
 
   * Parallel: we can easily run jobs in parallel up to the resource limits 
