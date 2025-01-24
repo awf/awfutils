@@ -76,15 +76,16 @@ f32[22x11x33] 10^-7 x Percentiles{0.002|0.493|2.470|4.958|7.490|9.434|9.996}
 
 # MkSweep:  Simple sweeps via makefile
 
-How do you specify a sweep?  In one sense, it's easy - you generally just want to
-run a series of commands, with different command-line arguments:
+What is a sweep?  Generally it boils down to a list of commands,
+perhaps the same core program with different command-line arguments:
 ```sh
 python myrun.py --lr=0.00003
 python myrun.py --lr=0.0001
 python myrun.py --lr=0.0003
 python myrun.py --lr=0.001
 ```
-A few properties we might like are:
+
+In managing such a list, a few properties we might like are:
 
   * Interruptable: if a job fails, or if a machine fails, we can easily
     resume the sweep without re-running already-finished jobs.
@@ -102,15 +103,19 @@ A few properties we might like are:
 These properties are reminiscent of those one might want in a large software build 
 system, so `MkSweep` simply puts the series of commands into a classic `Makefile`,
 which can be called in order to run them.  Each command is given an output directory 
-which is a hash of its command line, so that re-running the same command will re-use the outputs.  The output's "done" marker is not updated until the command is successfully completed, so an interrupted command will always re-run until it completes successfully.
+which is a hash of its command line, so that re-running the same command will re-use 
+the outputs.  The output's "done" marker is not updated until the command is 
+successfully completed, so an interrupted command will re-run when the sweep is 
+restarted until it completes successfully.
 
 To specify which commands to run, we use a python script rather than any sort of YAML 
 file, for reasons which, if not apparent immediately, should become reasonable when 
-we see more complex examples.  For the above simple learning rate sweep, the definition is:
+we see more complex examples.
+For the above simple learning rate sweep, the definition is:
 ```py
 from awfutils import MkSweep
-with MkSweep("mytmp") as ms:
-  # Define sweep here:
+with MkSweep("mytmp") as ms: # Sweep will write into directory 'mytmp'
+  # The sweep definition begins here:
   for lr in (0.00003, 0.0001, 0.0003, 0.001):
       ms.add(f"python myrun.py --lr={lr}")
 ```
@@ -132,24 +137,33 @@ If we edit the sweep definition to include an extra `lr`, and a baseline run:
   for lr in (0.00003, 0.0001, 0.0003, 0.001, 0.003):
       ms.add(f"python myrun.py --lr={lr}")
 ```
-then re-running `make -f mytmp/Makefile` will just run the parts that have not been marked as done, which in this case would mean the new command for lr=0.003, and the new "No LR" command.
+then re-running `make -f mytmp/Makefile` will just run the parts that have not been
+marked as done, which in this case would mean the new command for lr=0.003, 
+and the new "No LR" command.
 
-If we want to re-run everything (for example the code changed), then we can just remove the `mytmp` folders, or just make a new sweep folder e.g. `sweeps/run2`
+If we want to re-run everything (for example the code changed), then we can just 
+remove the `mytmp` folders, or just make a new sweep folder e.g. `sweeps/run2`
 
 ### Why python, not YAML?
-I have some problem with hyperparameters "alpha" and "beta", and I'm testing the idea 
-that you should set beta to 1-alpha, while existing work sets it either to .99 or .999.
+Suppose you have a program with parameters "alpha" and "beta", and you're testing the idea 
+that you should set `beta` to `1-alpha`, while existing work sets it either to .99 or .999.
 
-With a traditional sweeping infrastructure, configured via YAML files, it would be hard 
-to encode the special rule that you don't need to run 1-alpha if it equals beta.
+With a traditional sweeping infrastructure, configured via YAML files, it might be hard 
+to encode the special rule that you don't need to run `1-alpha` if it equals `beta`.
 In python you can just write
 ```py
   for alpha in [1e-4, 3e-4, 1e-3]:
-    for beta in set([0.99, 0.999, 1-alpha]): # deduplicate betas
+    for beta in set([0.99, 0.999, 1-alpha]): # deduplicate betas using python `set`
       ms.add(f"python myrun.py --alpha={alpha} --beta={beta}")
 ```
 Now in this case, the command hashing would not have run both commands anyway, 
-but other constraints, e.g. $\alpha \le \beta \le \alpha^2$ are easily handled because the specification is all in Python.
+but other constraints, e.g. $\alpha \le \beta \le \alpha^2$ are easily handled 
+because the specification is all in Python:
+```py
+  for alpha in np.arange(1.5, 2, 0.1):
+    for beta in np.linspace(alpha, alpha** 2, 5):
+      ms.add(f"python myrun.py --alpha={alpha} --beta={beta}")
+```
 
 ### I know makefiles, tell me more?
 We use make, rather than any more sophisticated build system because the complex logic
