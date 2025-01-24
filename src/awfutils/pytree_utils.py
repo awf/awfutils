@@ -189,7 +189,7 @@ def _strval(x):
     return s[:40]
 
 
-def pt_print(tag, x, printer=print, strval=_strval):
+def pt_print_aux(x, tag="", printer=print, strval=_strval):
     """
     Print a PyTree, with tag prefix, and compactly printing tensors
     Assumes that dict keys are "simple" in the sense that they render well in 40 chars.
@@ -197,20 +197,30 @@ def pt_print(tag, x, printer=print, strval=_strval):
     if isinstance(x, tuple):
         l = len(x)
         for i in range(l):
-            pt_print(tag + f"[{i}]:", x[i], printer=printer, strval=strval)
+            pt_print_aux(x[i], tag=tag + f"[{i}]:", printer=printer, strval=strval)
     elif isinstance(x, dict):
         for k in x:
-            pt_print(tag + f"[{_strval(k)}]:", x[k], printer=printer, strval=strval)
+            pt_print_aux(
+                x[k], tag=tag + f"[{_strval(k)}]:", printer=printer, strval=strval
+            )
     elif isinstance(x, list):
         printer(tag + "[")
         for v in x:
-            pt_print(tag + "| ", v, printer=printer, strval=strval)
+            pt_print_aux(v, tag=tag + "| ", printer=printer, strval=strval)
         printer(tag + "]")
     elif isinstance(x, torch.nn.Module):
         for k, v in x.named_parameters():
             pt_print(tag + f".{k}=", v, printer=printer, strval=strval)
     else:
         printer(tag + strval(x))
+
+
+import inspect
+
+
+def pt_print(*xs):
+    for x in xs:
+        pt_print_aux(x, tag="x:")
 
 
 def test_PyTree_with_non_floats():
@@ -221,7 +231,7 @@ def test_PyTree_with_non_floats():
     )
 
     # Just a crash check TODO: inspect output
-    pt_print("val", val, strval=ndarray_str)
+    pt_print(val)
 
     # print(cpprint(pt_map(ndarray_str, val)))
 
