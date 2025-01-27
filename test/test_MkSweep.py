@@ -8,7 +8,7 @@ from awfutils import MkSweep
 
 
 def test_mksweep(capfd):
-  shutil.rmtree("tmp/awfutils-sweep-test")
+  shutil.rmtree("tmp/awfutils-sweep-test", ignore_errors=True)
   with MkSweep("tmp/awfutils-sweep-test") as ms:
     for lr in (1e-4, 3e-4, 1e-3):
       for beta in set([0.99, 0.999, 1-lr]): 
@@ -21,7 +21,7 @@ def test_mksweep(capfd):
   )
 
 def test_mksweep_dups(capfd):
-  shutil.rmtree("tmp/awfutils-sweep-test")
+  shutil.rmtree("tmp/awfutils-sweep-test", ignore_errors=True)
   with MkSweep("tmp/awfutils-sweep-test") as ms:
     for lr in (1e-4, 3e-4, 1e-3):
       for beta in [0.99, 0.999, 1-lr]: 
@@ -34,7 +34,7 @@ def test_mksweep_dups(capfd):
   )
 
 def test_mksweep_arange(capfd):
-  shutil.rmtree("tmp/awfutils-sweep-test")
+  shutil.rmtree("tmp/awfutils-sweep-test", ignore_errors=True)
   with MkSweep("tmp/awfutils-sweep-test") as ms:
     for alpha in np.linspace(1.5, 2, 3):
       for beta in np.linspace(alpha, alpha** 2, 3):
