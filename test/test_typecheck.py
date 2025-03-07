@@ -101,17 +101,17 @@ def test_typecheck_jaxtyping1():
         pytest.skip("No jax or jaxtyping")
 
     import jax
-    from jaxtyping import f32, jaxtyped, u
-
-    # int_t = jaxtyping.i[""] TODO
+    from jaxtyping import Float32, jaxtyped, Array
 
     rng = jax.random.PRNGKey(42)
     vec_f32 = jax.random.uniform(rng, (11,))
 
     @jax.jit
     @partial(typecheck, show_src=True, refers=(jaxtyping,))
-    def foo1(x: jaxtyping.i[""], t: f32["N"]) -> f32["N"]:
-        z: f32["N"] = x * t
+    def foo1(
+        x: jaxtyping.Int[Array, ""], t: Float32[Array, "N"]
+    ) -> Float32[Array, "N"]:
+        z: Float32[Array, "N"] = x * t
         return z
 
     with does_not_raise():
@@ -125,30 +125,32 @@ def test_typecheck_jaxtyping2():
     except:
         pytest.skip("No jaxtyping")
 
-    from jaxtyping import f32, jaxtyped
+    from jaxtyping import Float32, jaxtyped, Array
 
     rng = jax.random.PRNGKey(42)
-    vec_f32 = jax.random.uniform(rng, (11,))
+    vec_Float32 = jax.random.uniform(rng, (11,))
 
     # Raw jaxtyped - won't check the statement annotation
     @jaxtyped
-    def standardize(x: jaxtyping.f32["N"], eps=1e-5) -> f32["N"]:
+    def standardize(x: jaxtyping.Float32[Array, "N"], eps=1e-5) -> Float32[Array, "N"]:
         m: float = x.mean()
-        xc: f32["N N"] = x - m  # Wants to be NxN, won't be caught
+        xc: Float32[Array, "N N"] = x - m  # Wants to be NxN, won't be caught
         return xc / (x.std() + eps)
 
     with does_not_raise():
-        t1 = standardize(vec_f32)
+        t1 = standardize(vec_Float32)
 
     # Typecheck with jaxtyping types - will raise
-    @partial(typecheck, show_src=True)
-    def standardize_tc(x: jaxtyping.f32["N"], eps=1e-5) -> f32["N"]:
-        m: jaxtyping.f32[""] = x.mean()
-        xc: f32["N N"] = x - m  # Wants to be NxN, won't be caught
+    @typecheck_show_src
+    def standardize_tc(
+        x: jaxtyping.Float32[Array, "N"], eps=1e-5
+    ) -> Float32[Array, "N"]:
+        m: jaxtyping.Float32[Array, ""] = x.mean()
+        xc: Float32[Array, "N N"] = x - m  # Wants to be NxN, will be caught
         return xc / (x.std() + eps)
 
-    with pytest.raises(TypeError, match=r"xc not of type f32\['N N'\]"):
-        t1 = standardize_tc(vec_f32)
+    with pytest.raises(TypeError, match=r"xc not of type Float32\[Array, 'N N'\]"):
+        t1 = standardize_tc(vec_Float32)
 
     # embeddings = jax.random.uniform(rng, (11,13))
     # t1 = standardize(embeddings)
