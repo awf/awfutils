@@ -210,12 +210,9 @@ def pt_print_aux(x, tag="", printer=print, strval=_strval):
         printer(tag + "]")
     elif isinstance(x, torch.nn.Module):
         for k, v in x.named_parameters():
-            pt_print(tag + f".{k}=", v, printer=printer, strval=strval)
+            pt_print_aux(v, tag + f".{k}=", printer=printer, strval=strval)
     else:
         printer(tag + strval(x))
-
-
-import inspect
 
 
 def pt_print(*xs):
