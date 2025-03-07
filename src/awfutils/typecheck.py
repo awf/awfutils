@@ -219,7 +219,8 @@ def typecheck(f, show_src=False, refers=()):
     f_node, filename = get_ast_for_function(f)
     f_new_node = TypeCheckVisitor().visit(f_node)
 
-    loc = lambda x: ast.copy_location(x, f_node)
+    def loc(x):
+        return ast.copy_location(x, f_node)
 
     # Now add nodes for freevars
     #
