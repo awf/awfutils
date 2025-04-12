@@ -1,7 +1,7 @@
 import numpy as np
 
 
-def ndarray_str(x):
+def ndarray_str(x, tiny : int = 10, large : int = 100_000_000):
     """
     Nicely print an ndarray on one line.
 
@@ -38,7 +38,7 @@ def ndarray_str(x):
     notes = ""
     finite_vals = x[np.isfinite(x)]
     all_finite = size(finite_vals) == size(x)
-    display_all = size(x) <= 10
+    display_all = size(x) <= tiny
 
     def disp(a, fmt):
         if len(a.shape) > 1:
@@ -55,14 +55,15 @@ def ndarray_str(x):
         if not all_finite:
             notes += f" #inf={np.isinf(x).sum()} #nan={np.isnan(x).sum()}"
 
-        if size(x) < 1e6:
+        if size(x) < large:
             quantiles = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0]
             vals = np.quantile(finite_vals, quantiles, method="nearest")
             head, tail = "Percentiles{", "}"
         else:
             # Too large to sort, just show min, median, max
             vals = np.array(
-                [finite_vals.min(), np.median(finite_vals), finite_vals.max()]
+                [finite_vals.min(), np.median(finite_vals), finite_vals.max()],
+                dtype=x.dtype,
             )
             head, tail = "MinMedMax{", "}"
 
