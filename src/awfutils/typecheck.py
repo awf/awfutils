@@ -95,16 +95,16 @@ class TypeCheckVisitor(ast.NodeTransformer):
     def make_assert_node(self, name: str, annotation: ast.expr):
         annot_str = ast.unparse(annotation)
 
-        # typecheck.assert_is_instance
-        assert_is_instance = ast.Attribute(
+        # typecheck.check_annot
+        check_annot = ast.Attribute(
             value=ast.Name("typecheck", ctx=ast.Load()),
-            attr="assert_is_instance",
+            attr="check_annot",
             ctx=ast.Load(),
         )
 
         node = ast.Expr(
             ast.Call(
-                assert_is_instance,
+                check_annot,
                 [
                     ast.Name(name, ctx=ast.Load()),
                     annotation,
@@ -169,7 +169,7 @@ class TypeCheckVisitor(ast.NodeTransformer):
         return [node, node_assert]
 
 
-def typecheck(f, show_src=False, refers=()):
+def _typecheck(f, show_src=False, refers=()):
     """
     TODO: Sync this with README automatically.
 
@@ -319,14 +319,36 @@ def typecheck(f, show_src=False, refers=()):
     return f_checked
 
 
-def assert_is_instance(var, annot_type, varname, annot_str):
-    if not isinstance(var, annot_type):
-        raise TypeError(
-            f"{varname} not of type {annot_str}, was {type(var)}, value {var}"
-        )
+def check_annot(var, annot_type, varname, annot_str):
+    if isinstance(annot_type, type):
+        if not isinstance(var, annot_type):
+            raise TypeError(
+                f"{varname} not of type {annot_str}, was {type(var)}, value {var}"
+            )
+    else:
+        # Assume the annot_type is a callable
+        result = annot_type(var)
+        if not result:
+            raise TypeError(f"{varname} does not satisfy {annot_str}")
 
 
-# How much am I going to regret this?
-# Trying to avoid having to import the module as well as just the
-# typecheck function
-typecheck.assert_is_instance = assert_is_instance
+def typecheck(*args, **kwargs):
+    if len(args) == 1 and callable(args[0]):
+        # Called as a decorator
+        f = args[0]
+        assert not kwargs
+        return _typecheck(f)
+    else:
+        assert len(args) == 0
+        return lambda f: _typecheck(f, **kwargs)
+
+
+# We want to allow this:
+#   from awfutils import typecheck
+# But we want to refer to check_annot from within
+# our transformed AST.
+# We could make typecheck be a module, then do
+#  https://stackoverflow.com/questions/1060796/callable-modules/48100440#48100440
+# but that seems uglier than this: adding a reference
+# to check_annot to the function.
+typecheck.check_annot = check_annot

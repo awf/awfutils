@@ -32,6 +32,40 @@ def foo(x : int, y : float):
 foo(3, 1.3) # Error comes from this call
 ```
 
+And you can use a callable instead to check more complex concepts
+```python
+def is_square_tensor(x):
+  return x.shape[0] == x.shape[1]
+
+@typecheck
+def foo(x : Tensor):
+  z : is_square_tensor = x @ x.T # check result is square
+  w : float = z * 3.2
+  return w
+
+foo(torch.ones(3,4))
+```
+
+Or define local shape checkers
+```python
+def is_shape(*sh):
+  def checker(x):
+    return all(x.shape == sh)
+  return checker
+
+@typecheck
+def foo(x : Tensor):
+  L,D = x.shape # Get shape of X
+  LxD = is_shape(L,D) # LxD(v) checks that v is LxD
+  LxL = is_shape(L,L) # LxD(v) checks that v is LxD
+
+  z : LxL = x @ x.T # check result is square
+  w : LxD = z @ x
+  return w
+
+foo(torch.ones(3,4))
+```
+
 This works by AST transformation, replacing the function foo above
 with the function
 ```python

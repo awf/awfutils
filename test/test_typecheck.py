@@ -1,11 +1,23 @@
 from contextlib import nullcontext as does_not_raise
 from functools import partial
 
+import jax
+import jax.numpy as jnp
+import jaxtyping
 import pytest
+import torch
+from beartype import beartype as typechecker
+from jaxtyping import Array, jaxtyped
+from torch import Tensor
 
 from awfutils import typecheck
 
-typecheck_show_src = partial(typecheck, show_src=True)
+# Define type aliases - typecheck will use these
+# as names, for much clearer error messages.
+Int = jaxtyping.Int[Array, ""]
+Float = jaxtyping.Float[Array, ""]
+FloatN = jaxtyping.Float[Array, "N"]
+FloatNxN = jaxtyping.Float[Array, "N N"]
 
 
 def test_typecheck_1():
@@ -41,6 +53,85 @@ def test_typecheck_1():
         foo1(3, 5)
 
 
+def test_typecheck_callables():
+    def is_float(v):
+        return isinstance(v, float)
+
+    @typecheck
+    def foo(x: int, t: is_float) -> float:
+        y: is_float = x * t
+        assert isinstance(y, float), f"y : {type(y)} not of type float"
+        z: int = x // 2
+        assert isinstance(z, int), "z not of type int"
+        return z * y
+
+    # Use manual checks
+    foo.__wrapped__(3, 4.2)
+
+    # Ensure passes
+    with does_not_raise():
+        foo(3, 4.2)
+
+    # Check that argument mismatches also raise
+    with pytest.raises(TypeError, match="t does not satisfy is_float"):
+        foo(3, 5)
+
+    @typecheck
+    def foo1(x: int, t: int) -> float:
+        y: is_float = x * t  # Expect to fail here
+        z: int = x // 2
+        return z * y
+
+    with does_not_raise():
+        foo1.__wrapped__(3, 5)
+
+    with pytest.raises(TypeError, match="y does not satisfy is_float"):
+        foo1(3, 5)
+
+
+def test_typecheck_torch():
+
+    def is_square_tensor(x):
+        return x.shape[0] == x.shape[1]
+
+    @typecheck
+    def foo(x: Tensor):
+        z: is_square_tensor = x @ x.T  # check result is square
+        return z
+
+    foo(torch.ones(3, 4))
+
+    def is_shape(*sh):
+        # Return a function that checks the shape
+        return lambda x: x.shape == sh
+
+    is_shape(3, 4)(torch.ones(3, 4))
+
+    @typecheck
+    def floo(x: Tensor):
+        L, D = x.shape  # Get shape of X
+        LxD = is_shape(L, D)  # LxD(v) checks that v is LxD
+        LxL = is_shape(L, L)  # LxL
+
+        z: LxL = x @ x.T  # check result is square
+        w: LxD = z @ x
+        return w
+
+    floo(torch.ones(3, 4))
+
+    @typecheck
+    def shouldfail(x: Tensor):
+        L, D = x.shape  # Get shape of X
+        LxD = is_shape(L, D)  # LxD(v) checks that v is LxD
+
+        z: LxD = x @ x.T  # check result is square
+        return z
+
+    with pytest.raises(TypeError, match="z does not satisfy LxD"):
+        # This should fail, as z is LxL
+        shouldfail(torch.ones(3, 4))
+
+
 z_in_global_scope = 9
 
 
@@ -67,15 +158,7 @@ def test_typecheck_scope():
 
 
 def test_typecheck_jax():
-    try:
-        import jax
-    except:
-        pytest.skip("No jax")
-
-    import jax
-    import jax.numpy as jnp
-
-    @typecheck_show_src
+    @typecheck(show_src=True)
     def foo1(x: jnp.ndarray, t: jnp.ndarray) -> float:
         y: jnp.ndarray = x * t
         z: jnp.ndarray = y / 2
@@ -94,24 +177,13 @@ def test_typecheck_jax():
 
 
 def test_typecheck_jaxtyping1():
-    try:
-        import jax
-        import jaxtyping
-    except:
-        pytest.skip("No jax or jaxtyping")
-
-    import jax
-    from jaxtyping import f32, jaxtyped, u
-
-    # int_t = jaxtyping.i[""] TODO
-
     rng = jax.random.PRNGKey(42)
     vec_f32 = jax.random.uniform(rng, (11,))
 
     @jax.jit
-    @partial(typecheck, show_src=True, refers=(jaxtyping,))
-    def foo1(x: jaxtyping.i[""], t: f32["N"]) -> f32["N"]:
-        z: f32["N"] = x * t
+    @typecheck(show_src=True)
+    def foo1(x: Int, t: FloatN) -> FloatN:
+        z: FloatN = x * t
         return z
 
     with does_not_raise():
@@ -119,39 +191,25 @@ def test_typecheck_jaxtyping1():
 
 
 def test_typecheck_jaxtyping2():
-    try:
-        import jax
-        import jaxtyping
-    except:
-        pytest.skip("No jaxtyping")
-
-    from jaxtyping import f32, jaxtyped
-
     rng = jax.random.PRNGKey(42)
     vec_f32 = jax.random.uniform(rng, (11,))
 
     # Raw jaxtyped - won't check the statement annotation
-    @jaxtyped
-    def standardize(x: jaxtyping.f32["N"], eps=1e-5) -> f32["N"]:
+    @jaxtyped(typechecker=typechecker)
+    def standardize(x: FloatN, eps=1e-5) -> FloatN:
         m: float = x.mean()
-        xc: f32["N N"] = x - m  # Wants to be NxN, won't be caught
+        xc: FloatNxN = x - m  # Wants to be NxN, won't be caught
         return xc / (x.std() + eps)
 
     with does_not_raise():
         t1 = standardize(vec_f32)
 
     # Typecheck with jaxtyping types - will raise
-    @partial(typecheck, show_src=True)
-    def standardize_tc(x: jaxtyping.f32["N"], eps=1e-5) -> f32["N"]:
-        m: jaxtyping.f32[""] = x.mean()
-        xc: f32["N N"] = x - m  # Wants to be NxN, won't be caught
+    @typecheck
+    def standardize_tc(x: FloatN, eps=1e-5) -> FloatN:
+        m: Float = x.mean()
+        xc: FloatNxN = x - m  # Wants to be NxN, won't be caught
         return xc / (x.std() + eps)
 
-    with pytest.raises(TypeError, match=r"xc not of type f32\['N N'\]"):
+    with pytest.raises(TypeError, match=r"xc not of type FloatNxN"):
         t1 = standardize_tc(vec_f32)
-
-    # embeddings = jax.random.uniform(rng, (11,13))
-    # t1 = standardize(embeddings)
-
-    # embeddings = jax.random.uniform(rng, (11, 13))
-    # t1 = jax.vmap(standardize)(embeddings)

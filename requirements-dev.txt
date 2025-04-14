@@ -3,6 +3,8 @@ pytest
 nbval
 jax
 torch
+jaxtyping
+beartype
 
 # Requirements for development
 pre-commit
