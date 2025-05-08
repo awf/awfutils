@@ -1,5 +1,5 @@
 import operator
-from types import FunctionType, BuiltinFunctionType
+from types import FunctionType, BuiltinFunctionType, SimpleNamespace
 from typing import Type
 
 from prettyprinter import cpprint, pformat
@@ -182,8 +182,8 @@ def _strval(x):
         # Assume entries are small
         return "(" + ", ".join(map(_strval, x)) + ")"
 
-    if isinstance(x, torch.Tensor):
-        return "Tensor " + ndarray_str(x.detach().cpu().numpy())
+    if hasattr(x, "__array__"):
+        return "Tensor " + ndarray_str(x)
 
     s = pformat(x).replace("\n", "\\n")
     return s[:40]
@@ -198,16 +198,19 @@ def pt_print_aux(x, tag="", printer=print, strval=_strval):
         l = len(x)
         for i in range(l):
             pt_print_aux(x[i], tag=tag + f"[{i}]:", printer=printer, strval=strval)
-    elif isinstance(x, dict):
-        for k in x:
-            pt_print_aux(
-                x[k], tag=tag + f"[{_strval(k)}]:", printer=printer, strval=strval
-            )
     elif isinstance(x, list):
         printer(tag + "[")
         for v in x:
             pt_print_aux(v, tag=tag + "| ", printer=printer, strval=strval)
         printer(tag + "]")
+    elif isinstance(x, dict):
+        for k in x:
+            pt_print_aux(
+                x[k], tag=tag + f"[{_strval(k)}]:", printer=printer, strval=strval
+            )
+    elif isinstance(x, SimpleNamespace):
+        for k, v in x.items():
+            pt_print_aux(v, tag=tag + f".{str(k)}:", printer=printer, strval=strval)
     elif isinstance(x, torch.nn.Module):
         for k, v in x.named_parameters():
             pt_print_aux(v, tag + f".{k}=", printer=printer, strval=strval)
