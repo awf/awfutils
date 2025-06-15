@@ -189,33 +189,41 @@ def _strval(x):
     return s[:40]
 
 
+def printlines(x, tag="", strval=_strval):
+    """
+    Print a PyTree, with tag prefix, and compactly printing tensors
+    Assumes that dict keys are "simple" in the sense that they render well in 40 chars.
+    This is a generator of lines.
+    """
+    if isinstance(x, tuple):
+        l = len(x)
+        for i in range(l):
+            yield from printlines(x[i], tag=tag + f"[{i}]", strval=strval)
+    elif isinstance(x, list):
+        yield (tag + "[")
+        for i, v in enumerate(x):
+            yield from printlines(v, tag=f"{tag}[{i}]", strval=strval)
+        yield (tag + "]")
+    elif isinstance(x, dict):
+        for k in x:
+            yield from printlines(x[k], tag=tag + f"[{_strval(k)}]", strval=strval)
+    elif isinstance(x, SimpleNamespace):
+        for k, v in x.items():
+            yield from printlines(v, tag=tag + f".{str(k)}", strval=strval)
+    elif isinstance(x, torch.nn.Module):
+        for k, v in x.named_parameters():
+            yield from printlines(v, tag + f".{k}", strval=strval)
+    else:
+        yield (tag + " = " + strval(x))
+
+
 def pt_print_aux(x, tag="", printer=print, strval=_strval):
     """
     Print a PyTree, with tag prefix, and compactly printing tensors
     Assumes that dict keys are "simple" in the sense that they render well in 40 chars.
     """
-    if isinstance(x, tuple):
-        l = len(x)
-        for i in range(l):
-            pt_print_aux(x[i], tag=tag + f"[{i}]:", printer=printer, strval=strval)
-    elif isinstance(x, list):
-        printer(tag + "[")
-        for v in x:
-            pt_print_aux(v, tag=tag + "| ", printer=printer, strval=strval)
-        printer(tag + "]")
-    elif isinstance(x, dict):
-        for k in x:
-            pt_print_aux(
-                x[k], tag=tag + f"[{_strval(k)}]:", printer=printer, strval=strval
-            )
-    elif isinstance(x, SimpleNamespace):
-        for k, v in x.items():
-            pt_print_aux(v, tag=tag + f".{str(k)}:", printer=printer, strval=strval)
-    elif isinstance(x, torch.nn.Module):
-        for k, v in x.named_parameters():
-            pt_print_aux(v, tag + f".{k}=", printer=printer, strval=strval)
-    else:
-        printer(tag + strval(x))
+    for line in printlines(x, tag=tag, strval=strval):
+        printer(line)
 
 
 def pt_print(*xs):
