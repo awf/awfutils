@@ -208,7 +208,7 @@ def printlines(x, tag="", strval=_strval):
         for k in x:
             yield from printlines(x[k], tag=tag + f"[{_strval(k)}]", strval=strval)
     elif isinstance(x, SimpleNamespace):
-        for k, v in x.items():
+        for k, v in x.__dict__.items():
             yield from printlines(v, tag=tag + f".{str(k)}", strval=strval)
     elif isinstance(x, torch.nn.Module):
         for k, v in x.named_parameters():
