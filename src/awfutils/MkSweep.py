@@ -6,12 +6,11 @@ def dicttoflags(d):
     return " ".join([f"--{k}={v}" for k, v in d.items()])
 
 
-
 import contextlib
 
 
 class MkSweep(contextlib.AbstractContextManager):
-    """ 
+    """
     Simple sweeps via makefile
 
     ```
@@ -19,7 +18,7 @@ class MkSweep(contextlib.AbstractContextManager):
       with MkSweep("mytmp/sweeplogs") as ms:
         ms.add("python myrun.py --tvalue=7")
         for lr in (1e-4, 3e-4, 1e-3):
-          for beta in set([0.99, 0.999, 1-lr])): 
+          for beta in set([0.99, 0.999, 1-lr])):
             ms.add(f"python myrun.py --tvalue=7 --lr={lr} --beta={beta}")
     ```
 
@@ -48,7 +47,7 @@ class MkSweep(contextlib.AbstractContextManager):
 
     If your jobs are small, you can run several in parallel using make's "-j" option:
     ```
-      make -f mytmp/sweeplogs/Makefile -j3 # Run at most 3 jobs at a time 
+      make -f mytmp/sweeplogs/Makefile -j3 # Run at most 3 jobs at a time
     ```
     """
 
@@ -69,7 +68,7 @@ class MkSweep(contextlib.AbstractContextManager):
         self.makefile.close()
         print("sweep: Made makefile", self.makefile_path)
 
-    def add(self, cmd, defaults = {}, **kwargs):
+    def add(self, cmd, defaults={}, **kwargs):
         def tomk(*args):
             self.print(*args, sep="")
 
@@ -105,9 +104,5 @@ class MkSweep(contextlib.AbstractContextManager):
         tomk(f"\tmv {tmplog} $@")
         tomk("")
 
-
-
     def print(self, *args, **kwargs):
         print(*args, **kwargs, file=self.makefile)
-
-
