@@ -1,3 +1,4 @@
+array_api_compat
 astpretty
 prettyprinter
 ml_collections

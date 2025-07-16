@@ -1,7 +1,42 @@
-import numpy as np
+from array_api_compat import array_namespace
+import re
 
 
-def ndarray_str(x, tiny : int = 10, large : int = 100_000_000):
+# Fixes for Array API
+import array_api_compat
+
+
+def _is_torch_array(xp, x):
+    # String check for jax so we don't need to import it
+    return xp.__name__ != "jax.numpy" and xp.is_torch_array(x)
+
+
+def _is_floating(xp, x):
+    if _is_torch_array(xp, x):
+        return xp.is_floating_point(x)
+
+    return xp.issubdtype(x.dtype, xp.floating)
+
+
+def _quantile(values, quantiles):
+    xp = array_namespace(values)
+
+    if _is_torch_array(xp, values):
+        dtype = values.dtype
+        if dtype != xp.float32:
+            values = xp.tensor(values, dtype=xp.float32)
+        qs = xp.quantile(values, xp.tensor(quantiles), interpolation="nearest")
+        return qs.to(dtype=dtype)
+    else:
+        return xp.quantile(values, xp.array(quantiles), interpolation="nearest").astype(
+            values.dtype
+        )
+
+
+# End/Fixes for Array API
+
+
+def ndarray_str(x, tiny: int = 10, large: int = 100_000_000):
     """
     Nicely print an ndarray on one line.
 
@@ -17,28 +52,22 @@ def ndarray_str(x, tiny : int = 10, large : int = 100_000_000):
     See the notebook <11-utils.ipynb> for more information.
     """
 
-    def size(x):
-        """
-        Size, for torch or np
-        """
-        return np.prod(x.shape)
-
     if not hasattr(x, "__array__"):
         return repr(x)
 
-    # Convert to numpy array - TODO: do this after we know it's small enough
-    x = np.array(x)
+    xp = array_namespace(x)
 
     shape_str = "x".join(map(str, x.shape))
     dtype_str = (
         f"{x.dtype}".replace("float", "f").replace("uint", "u").replace("int", "i")
     )
+    dtype_str = re.sub(r"^torch\.", r"", dtype_str)
     type_str = f"{dtype_str}[{shape_str}]"
 
     notes = ""
-    finite_vals = x[np.isfinite(x)]
-    all_finite = size(finite_vals) == size(x)
-    display_all = size(x) <= tiny
+    finite_vals = x[xp.isfinite(x)]
+    all_finite = xp.size(finite_vals) == xp.size(x)
+    display_all = xp.size(x) <= tiny
 
     def disp(a, fmt):
         if len(a.shape) > 1:
@@ -53,25 +82,25 @@ def ndarray_str(x, tiny : int = 10, large : int = 100_000_000):
         head, tail = "[", "]"
     else:
         if not all_finite:
-            notes += f" #inf={np.isinf(x).sum()} #nan={np.isnan(x).sum()}"
+            notes += f" #inf={xp.isinf(x).sum()} #nan={xp.isnan(x).sum()}"
 
-        if size(x) < large:
+        if xp.size(x) < large:
             quantiles = [0, 0.05, 0.25, 0.5, 0.75, 0.95, 1.0]
-            vals = np.quantile(finite_vals, quantiles, method="nearest")
+            vals = _quantile(finite_vals, quantiles)
             head, tail = "Percentiles{", "}"
         else:
             # Too large to sort, just show min, median, max
-            vals = np.array(
-                [finite_vals.min(), np.median(finite_vals), finite_vals.max()],
+            vals = xp.array(
+                [finite_vals.min(), xp.median(finite_vals), finite_vals.max()],
                 dtype=x.dtype,
             )
             head, tail = "MinMedMax{", "}"
 
-    if np.issubdtype(x.dtype, np.floating):
+    if _is_floating(xp, x):
         # scale down vals
-        max = np.abs(finite_vals).max() if size(finite_vals) else 0
+        max = xp.abs(finite_vals).max() if xp.size(finite_vals) else 0
         if max > 0:
-            logmax = np.floor(np.log10(max))
+            logmax = xp.floor(xp.log10(max))
             if -2 <= logmax <= 3:
                 logmax = 0
             max_scale = 10**-logmax

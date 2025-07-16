@@ -10,6 +10,7 @@ from .pytree_utils import (
     pt_sub,
     pt_sum,
     pt_print,
+    pt_print_aux,
 )
 from .print_utils import fn_name, class_name
 from .typecheck import get_ast_for_function, typecheck
