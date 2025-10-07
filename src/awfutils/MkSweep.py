@@ -35,7 +35,7 @@ class MkSweep(contextlib.AbstractContextManager):
       python myrun.py --tvalue=7 --lr=1e-4 --beta=0.99
       python myrun.py --tvalue=7 --lr=1e-3 --beta=0.999
     ```
-    where each command's output goes to a folder in `mytmp\sweeplogs` which is a
+    where each command's output goes to a folder in `mytmp/sweeplogs` which is a
     hash of the command.
 
     Running the makefile with
@@ -44,7 +44,7 @@ class MkSweep(contextlib.AbstractContextManager):
     ```
     will run any of the commands which have not yet run to completion.
     This means that a sweep that is interrupted can easily be restarted,
-    running only the jubs that have not completed.
+    running only the jobs that have not completed.
 
     If your jobs are small, you can run several in parallel using make's "-j" option:
     ```
