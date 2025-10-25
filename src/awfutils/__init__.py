@@ -11,6 +11,8 @@ from .pytree_utils import (
     pt_sum,
     pt_print,
     pt_print_aux,
+    pt_assert_close,
+    PyTree,
 )
 from .print_utils import fn_name, class_name
 from .typecheck import get_ast_for_function, typecheck

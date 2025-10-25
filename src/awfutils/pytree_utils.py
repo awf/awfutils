@@ -92,6 +92,23 @@ def test_sub():
     torch.testing.assert_close(pt_sub(val, A), (val[0] - A[0], val[1] - A[1]))
 
 
+import numpy as np
+
+
+def assert_equal_or_close(a, b, atol=1e-6):
+    if hasattr(a, "__array__"):
+        np.testing.assert_allclose(a, b, atol=atol)
+    else:
+        np.testing.assert_equal(a, b)
+
+
+def pt_assert_close(A, B, atol=1e-6, verbose=False):
+    """
+    Assert that pytrees A and B are close.
+    """
+    pt_map(lambda a, b: assert_equal_or_close(a, b, atol=atol), A, B)
+
+
 class PyTree:
     def __init__(self, *args):
         vals = tuple(a.val if isinstance(a, PyTree) else a for a in args)
@@ -140,11 +157,7 @@ class PyTree:
 
     @classmethod
     def assert_close(cls, A, B, verbose=False):
-        A, B = PyTree(A).val, PyTree(B).val
-        if verbose:
-            print(A)
-            print(B)
-        torch.testing.assert_close(A, B)
+        pt_assert_close(A, B, atol=1e-6)
 
 
 def test_PyTree():
