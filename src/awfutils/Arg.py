@@ -23,6 +23,11 @@ class Arg:
 
     If `sys.argv` has not been parsed at that point, or if its last parse was before `lr` was
     declared, it will be re-parsed.
+    
+    If you want to check whether an argument was explicitly set on the command line, use
+    ```
+        arg.is_set()
+    ```
 
     You can also summarize the changes from default using
         Arg.str()
@@ -85,6 +90,31 @@ class Arg:
         ns, _unused = Arg.parser.parse_known_args()
         return self.get_from_argparse_ns(ns)
 
+    def is_set(self):
+        """
+        Return whether this arg was explicitly set on the command line
+        """
+        ns = Arg.get_parsed_args()
+        arg_dict = ns.__dict__
+        return self.flag in arg_dict and arg_dict[self.flag] is not Arg._default_sentinel
+
+    @classmethod
+    def str(cls):
+        """
+        Return a short representation of the args that have been changed from their defaults
+        """
+        pas = cls.get_parsed_args().__dict__.items()
+        return " ".join(
+            f"{k}={Arg.all_args[k]()}" for (k, v) in pas if v != Arg._default_sentinel
+        )
+
+    @classmethod
+    def config(cls):
+        """
+        Return a simple dict of all known args and values
+        """
+        return {k: Arg.all_args[k]() for k in cls.get_parsed_args().__dict__}
+
     def get_from_argparse_ns(self, ns):
         arg_dict = ns.__dict__
         if self.override:
@@ -106,19 +136,3 @@ class Arg:
             cls.parsed_args_at = newhash
         return cls.parsed_args
 
-    @classmethod
-    def str(cls):
-        """
-        Return a short representation of the args that have been changed from their defaults
-        """
-        pas = cls.get_parsed_args().__dict__.items()
-        return " ".join(
-            f"{k}={Arg.all_args[k]()}" for (k, v) in pas if v != Arg._default_sentinel
-        )
-
-    @classmethod
-    def config(cls):
-        """
-        Return a simple dict of all known args and values
-        """
-        return {k: Arg.all_args[k]() for k in cls.get_parsed_args().__dict__}

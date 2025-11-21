@@ -14,4 +14,7 @@ def test_Arg():
     assert beta1() == 0.9
     assert beta2() == 4.0
 
+    assert beta2.is_set()
+    assert not beta1.is_set()
+
     assert Arg.str() == "lr=0.125 beta2=4.0"
