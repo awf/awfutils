@@ -1,7 +1,8 @@
 import numpy as np
+import jax
 
 
-def ndarray_str(x, tiny : int = 10, large : int = 100_000_000):
+def ndarray_str(x, tiny: int = 10, large: int = 100_000_000):
     """
     Nicely print an ndarray on one line.
 
@@ -26,15 +27,15 @@ def ndarray_str(x, tiny : int = 10, large : int = 100_000_000):
     if not hasattr(x, "__array__"):
         return repr(x)
 
-    # Convert to numpy array - TODO: do this after we know it's small enough
-    x = np.array(x)
-
     shape_str = "x".join(map(str, x.shape))
-    dtype_str = (
-        f"{x.dtype}".replace("float", "f").replace("uint", "u").replace("int", "i")
-    )
+    dtype_str = f"{x.dtype}".replace("float", "f").replace("uint", "u").replace("int", "i")
     type_str = f"{dtype_str}[{shape_str}]"
 
+    if isinstance(x, jax.core.Tracer):
+        return f"jax.core.Tracer {type_str}"
+
+    # Convert to numpy array - TODO: do this after we know it's small enough
+    x = np.array(x)
     notes = ""
     finite_vals = x[np.isfinite(x)]
     all_finite = size(finite_vals) == size(x)
@@ -89,8 +90,6 @@ def ndarray_str(x, tiny : int = 10, large : int = 100_000_000):
         # Assume integer, print as integers
         vals_str = head + disp(vals, "{v:d}") + tail
 
-    dtype_str = (
-        f"{x.dtype}".replace("float", "f").replace("uint", "u").replace("int", "i")
-    )
+    dtype_str = f"{x.dtype}".replace("float", "f").replace("uint", "u").replace("int", "i")
 
     return f"{type_str} {vals_str}{notes}"

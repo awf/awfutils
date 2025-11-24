@@ -8,3 +8,14 @@ def import_from_file(filename, module_name):
     sys.modules[module_name] = module
     spec.loader.exec_module(module)
     return module
+
+
+def dict_to_simple_namespace(d):
+    from types import SimpleNamespace
+
+    if isinstance(d, dict):
+        return SimpleNamespace(**{k: dict_to_simple_namespace(v) for k, v in d.items()})
+    elif isinstance(d, (list, tuple)):
+        return type(d)(dict_to_simple_namespace(v) for v in d)
+    else:
+        return d
