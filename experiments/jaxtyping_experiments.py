@@ -4,7 +4,7 @@ from functools import partial
 import jax
 import jax.numpy as jnp
 import jaxtyping
-from jaxtyping import f32, jaxtyped
+from jaxtyping import Float32, jaxtyped
 from prettyprinter import pprint
 
 int_t = jaxtyping.i[""]
@@ -13,6 +13,7 @@ from typecheck import typecheck
 
 typecheck_show_src = partial(typecheck, show_src=True)
 
+f32 = Float32
 
 rng = jax.random.PRNGKey(42)
 
