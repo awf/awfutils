@@ -157,7 +157,7 @@ class PyTree:
 
     @classmethod
     def assert_close(cls, A, B, verbose=False):
-        pt_assert_close(A, B, atol=1e-6)
+        pt_assert_close(PyTree(A).val, PyTree(B).val, atol=1e-6)
 
 
 def test_PyTree():
