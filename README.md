@@ -57,7 +57,7 @@ def is_shape(*sh):
 def foo(x : Tensor):
   L,D = x.shape # Get shape of X
   LxD = is_shape(L,D) # LxD(v) checks that v is LxD
-  LxL = is_shape(L,L) # LxD(v) checks that v is LxD
+  LxL = is_shape(L,L) # LxL(v) checks that v is LxL
 
   z : LxL = x @ x.T # check result is square
   w : LxD = z @ x
@@ -81,7 +81,7 @@ def foo_typecheck_wrap(x: int, y: float):
 Because it _is_ AST transformation, it is basically literally the above code,
 which you can see with the optional argument show_src=True
 ```python
-@functools.partial(typecheck, show_src=True)
+@typecheck(show_src=True)
 def foo(x : int, y : float):
   z : int = x * y # Now it does
   w : float = z * 3.2
