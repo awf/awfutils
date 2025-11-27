@@ -1,5 +1,5 @@
 import argparse
-import sys
+import sys, os
 from typing import Any, Dict, Type
 
 
@@ -23,7 +23,7 @@ class Arg:
 
     If `sys.argv` has not been parsed at that point, or if its last parse was before `lr` was
     declared, it will be re-parsed.
-    
+
     If you want to check whether an argument was explicitly set on the command line, use
     ```
         arg.is_set()
@@ -68,8 +68,11 @@ class Arg:
                 assert dtype is not None
             add(nargs="*", type=dtype)
 
-        elif isinstance(default, bool) and default == False:
-            add(action="store_true")
+        elif isinstance(default, bool):
+            if default is False:
+                add(action="store_true")
+            else:
+                add(action="store_false")
 
         else:
             add(type=type(default))
@@ -96,7 +99,9 @@ class Arg:
         """
         ns = Arg.get_parsed_args()
         arg_dict = ns.__dict__
-        return self.flag in arg_dict and arg_dict[self.flag] is not Arg._default_sentinel
+        return (
+            self.flag in arg_dict and arg_dict[self.flag] is not Arg._default_sentinel
+        )
 
     @classmethod
     def str(cls):
@@ -124,15 +129,22 @@ class Arg:
         return arg_dict[self.flag]
 
     @classmethod
-    def get_parsed_args(cls, argv=None):
-        if not argv:
-            argv = sys.argv[1:]
+    def get_parsed_args(cls, argv=None, reparse=False):
+        if argv is None and not cls.parsed_args:
+            # If no argv provided, and we have not parsed yet, use sys.argv
+            if "PYTEST_CURRENT_TEST" in os.environ:
+                # If running under pytest, ignore pytest's own args
+                # Anything added with pytest_addoption would not use our Arg parser anyway?
+                argv = []
+            else:
+                argv = sys.argv[1:]
+
+        # Hash our list of args - if it has changed since last parse, re-parse
 
         newhash = hash(tuple(sorted(cls.all_args.keys())))
-        if not cls.parsed_args or cls.parsed_args_at != newhash:
+        if reparse or not cls.parsed_args or cls.parsed_args_at != newhash:
             if not cls.parsed_args:
                 cls.parser.add_argument("-help", action="help", help="Print this help")
             cls.parsed_args = cls.parser.parse_args(argv)
             cls.parsed_args_at = newhash
         return cls.parsed_args
-
