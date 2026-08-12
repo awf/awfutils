@@ -3,6 +3,7 @@ import inspect
 import sys
 import types
 from textwrap import dedent
+from typing import Annotated, TypeAliasType, get_args, get_origin
 
 import astpretty
 
@@ -320,6 +321,21 @@ def _typecheck(f, show_src=False, refers=()):
 
 
 def check_annot(var, annot_type, varname, annot_str):
+    if isinstance(annot_type, TypeAliasType):
+        annot_type = annot_type.__value__
+
+    if get_origin(annot_type) is Annotated:
+        base_type, *metadata = get_args(annot_type)
+        check_annot(var, base_type, varname, annot_str)
+        for predicate in metadata:
+            if not callable(predicate):
+                raise TypeError(
+                    f"{varname} annotation metadata is not callable: {predicate!r}"
+                )
+            if not predicate(var):
+                raise TypeError(f"{varname} does not satisfy {annot_str}")
+        return
+
     if isinstance(annot_type, type):
         if not isinstance(var, annot_type):
             raise TypeError(
@@ -330,6 +346,10 @@ def check_annot(var, annot_type, varname, annot_str):
         result = annot_type(var)
         if not result:
             raise TypeError(f"{varname} does not satisfy {annot_str}")
+
+
+def shapechecker(*sz):
+    return lambda x, sz=sz: x.shape == sz
 
 
 def typecheck(*args, **kwargs):
@@ -352,3 +372,4 @@ def typecheck(*args, **kwargs):
 # but that seems uglier than this: adding a reference
 # to check_annot to the function.
 typecheck.check_annot = check_annot
+typecheck.shapechecker = shapechecker

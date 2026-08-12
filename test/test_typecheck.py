@@ -1,5 +1,5 @@
 from contextlib import nullcontext as does_not_raise
-from functools import partial
+from typing import Annotated
 
 import jax
 import jax.numpy as jnp
@@ -101,17 +101,13 @@ def test_typecheck_torch():
 
     foo(torch.ones(3, 4))
 
-    def is_shape(*sh):
-        # Return a function that checks the shape
-        return lambda x: x.shape == sh
-
-    is_shape(3, 4)(torch.ones(3, 4))
+    typecheck.shapechecker(3, 4)(torch.ones(3, 4))
 
     @typecheck
     def floo(x: Tensor):
         L, D = x.shape  # Get shape of X
-        LxD = is_shape(L, D)  # LxD(v) checks that v is LxD
-        LxL = is_shape(L, L)  # LxL
+        type LxD = Annotated[Tensor, typecheck.shapechecker(L, D)]
+        type LxL = Annotated[Tensor, typecheck.shapechecker(L, L)]
 
         z: LxL = x @ x.T  # check result is square
         w: LxD = z @ x
@@ -122,7 +118,7 @@ def test_typecheck_torch():
     @typecheck
     def shouldfail(x: Tensor):
         L, D = x.shape  # Get shape of X
-        LxD = is_shape(L, D)  # LxD(v) checks that v is LxD
+        type LxD = Annotated[Tensor, typecheck.shapechecker(L, D)]
 
         z: LxD = x @ x.T  # check result is square
         return z
@@ -202,7 +198,7 @@ def test_typecheck_jaxtyping2():
         return xc / (x.std() + eps)
 
     with does_not_raise():
-        t1 = standardize(vec_f32)
+        standardize(vec_f32)
 
     # Typecheck with jaxtyping types - will raise
     @typecheck
@@ -212,4 +208,4 @@ def test_typecheck_jaxtyping2():
         return xc / (x.std() + eps)
 
     with pytest.raises(TypeError, match=r"xc not of type FloatNxN"):
-        t1 = standardize_tc(vec_f32)
+        standardize_tc(vec_f32)
