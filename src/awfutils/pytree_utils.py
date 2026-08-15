@@ -1,14 +1,119 @@
-import operator
-from types import FunctionType, BuiltinFunctionType, SimpleNamespace
-from typing import Type
+"""PyTorch pytree helpers, including ``SimpleNamespace`` registration."""
 
-from prettyprinter import cpprint, pformat
+from __future__ import annotations
+
+import operator
+from collections.abc import Iterator
+from types import BuiltinFunctionType, FunctionType, SimpleNamespace
 
 import torch
-from torch.utils._pytree import tree_map, tree_flatten, tree_unflatten
+from prettyprinter import pformat
+from torch import Tensor
+from torch.utils import _pytree
+from torch.utils._pytree import tree_flatten, tree_map, tree_unflatten
 
 from .ndarray_str import ndarray_str
-from .print_utils import fn_name, class_name
+from .print_utils import class_name, fn_name
+
+
+def _namespace_flatten(namespace: SimpleNamespace):
+    names = list(vars(namespace))
+    return [getattr(namespace, name) for name in names], names
+
+
+def _namespace_unflatten(values, names: list[str]) -> SimpleNamespace:
+    return SimpleNamespace(**dict(zip(names, values)))
+
+
+def _namespace_flatten_with_keys(namespace: SimpleNamespace):
+    values, names = _namespace_flatten(namespace)
+    return [
+        (_pytree.GetAttrKey(name), value) for name, value in zip(names, values)
+    ], names
+
+
+_pytree.register_pytree_node(
+    SimpleNamespace,
+    _namespace_flatten,
+    _namespace_unflatten,
+    serialized_type_name="types.SimpleNamespace",
+    flatten_with_keys_fn=_namespace_flatten_with_keys,
+)
+
+
+def _path_name(path: tuple[_pytree.KeyEntry, ...]) -> str:
+    parts = []
+    for key in path:
+        if (
+            isinstance(key, _pytree.MappingKey)
+            and isinstance(key.key, str)
+            and key.key.isidentifier()
+        ):
+            parts.append(("." if parts else "") + key.key)
+        else:
+            parts.append(str(key))
+    return "".join(parts).lstrip(".")
+
+
+def _flatten_tensor_tree(tree: object):
+    path_leaves, spec = _pytree.tree_flatten_with_path(tree)
+    named_leaves = []
+    for path, leaf in path_leaves:
+        name = _path_name(path)
+        if not isinstance(leaf, Tensor):
+            raise TypeError(f"Leaf {name!r} is a {type(leaf).__name__}, not a Tensor")
+        named_leaves.append((name, leaf))
+    return named_leaves, spec
+
+
+def named_tensor_leaves(tree: object) -> Iterator[tuple[str, Tensor]]:
+    """Flatten a pytree, deriving leaf names from field and sequence paths."""
+    yield from _flatten_tensor_tree(tree)[0]
+
+
+def tensor_leaves(tree: object) -> Iterator[Tensor]:
+    return (tensor for _, tensor in named_tensor_leaves(tree))
+
+
+def flatten_tensor_tree(tree: object) -> tuple[list[tuple[str, Tensor]], str]:
+    """Return named tensor leaves and a serialized specification for rebuilding them."""
+    named_leaves, spec = _flatten_tensor_tree(tree)
+    return named_leaves, _pytree.treespec_dumps(spec)
+
+
+def unflatten_tensor_tree(serialized_spec: str, leaves: list[Tensor]) -> object:
+    return _pytree.treespec_loads(serialized_spec).unflatten(leaves)
+
+
+def test_named_tensor_tree_paths_and_serialization():
+    tree = SimpleNamespace(
+        vocabulary=torch.tensor([1.0]),
+        layers=(SimpleNamespace(query=torch.tensor([[2.0]])),),
+        projections={"output": torch.tensor([3.0])},
+    )
+
+    named_leaves, serialized_spec = flatten_tensor_tree(tree)
+
+    assert [name for name, _ in named_leaves] == [
+        "vocabulary",
+        "layers[0].query",
+        "projections.output",
+    ]
+    rebuilt = unflatten_tensor_tree(
+        serialized_spec, [tensor for _, tensor in named_leaves]
+    )
+    assert isinstance(rebuilt, SimpleNamespace)
+    assert isinstance(rebuilt.layers[0], SimpleNamespace)
+    assert torch.equal(rebuilt.layers[0].query, tree.layers[0].query)
+
+
+def test_named_tensor_tree_rejects_non_tensor_leaves():
+    try:
+        list(named_tensor_leaves(SimpleNamespace(weight=torch.tensor(1), label="bad")))
+    except TypeError as error:
+        assert str(error) == "Leaf 'label' is a str, not a Tensor"
+    else:
+        raise AssertionError("named_tensor_leaves accepted a non-Tensor leaf")
 
 
 def _testing_vals():
@@ -18,7 +123,7 @@ def _testing_vals():
 
 
 def pt_flatmap(f, *trees):
-    flats, specs = zip(*map(tree_flatten, trees))
+    flats, _specs = zip(*map(tree_flatten, trees))
     # Assert specs all the same
     results = [f(*args) for args in zip(*flats)]
     return results
@@ -32,7 +137,7 @@ def pt_map(f, *trees):
 
 
 def pt_sum(tree):
-    leaves, spec = tree_flatten(tree)
+    leaves, _spec = tree_flatten(tree)
     return sum(l.sum() for l in leaves)
 
 
@@ -49,7 +154,7 @@ def pt_dot(A, B):
 
 
 def pt_maxabs(tree):
-    leaves, spec = tree_flatten(tree)
+    leaves, _spec = tree_flatten(tree)
     return max(l.abs().max() for l in leaves)
 
 
@@ -187,7 +292,7 @@ def _strval(x):
     if isinstance(x, BuiltinFunctionType):
         return "builtin " + x.__name__
 
-    if isinstance(x, Type):
+    if isinstance(x, type):
         return "class " + class_name(x)
 
     if isinstance(x, tuple):
@@ -222,7 +327,7 @@ def printlines(x, tag="", strval=_strval):
             yield from printlines(x[k], tag=tag + f"[{_strval(k)}]", strval=strval)
     elif isinstance(x, SimpleNamespace):
         for k, v in x.__dict__.items():
-            yield from printlines(v, tag=tag + f".{str(k)}", strval=strval)
+            yield from printlines(v, tag=tag + f".{k!s}", strval=strval)
     elif isinstance(x, torch.nn.Module):
         for k, v in x.named_parameters():
             yield from printlines(v, tag + f".{k}", strval=strval)
